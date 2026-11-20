@@ -1,6 +1,6 @@
 // Calls the AI for the mood. In production this is the Supabase Edge Function `ideas`.
 // During development it can point at the legacy Node server instead (EXPO_PUBLIC_AI_URL).
-import { supabase, supabaseReady } from "./supabase";
+import { ensureSession, supabase, supabaseReady } from "./supabase";
 
 export type AiRequest = {
   game: "tod" | "wheel";
@@ -37,14 +37,4 @@ export async function askAI(req: AiRequest): Promise<AiResponse> {
     return j;
   }
   throw new Error("");
-}
-
-/** Everyone gets a user id, at least an anonymous one, so limits and rooms work without an account. */
-export async function ensureSession() {
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getSession();
-  if (data.session) return data.session;
-  const { data: anon, error } = await supabase.auth.signInAnonymously();
-  if (error) throw new Error("");
-  return anon.session;
 }

@@ -3,6 +3,12 @@
   command = "npx expo export -p web"
   publish = "dist"
 
+# Live room links like /r/K7QX9M2A are one client page
+[[redirects]]
+  from = "/r/*"
+  to = "/r/[code].html"
+  status = 200
+
 [[headers]]
   for = "/sw.js"
   [headers.values]

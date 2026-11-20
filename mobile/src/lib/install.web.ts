@@ -15,7 +15,8 @@ if (typeof window !== "undefined") {
   window.addEventListener("appinstalled", () => { saved = null; listeners.forEach((f) => f()); });
   // This module loads lazily, often after the page's load event, so register right away if it has passed
   const register = () => navigator.serviceWorker.register("/sw.js").catch(() => {});
-  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  // Production builds only: in development the worker would cache stale bundles
+  if (!__DEV__ && "serviceWorker" in navigator && location.protocol.startsWith("http")) {
     if (document.readyState === "complete") register();
     else window.addEventListener("load", register);
   }

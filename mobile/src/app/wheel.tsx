@@ -10,6 +10,7 @@ import { WHEELS } from "@/game/content";
 import { fillTarget } from "@/game/match";
 import type { Wedge } from "@/game/types";
 import { planSpin } from "@/game/wheel";
+import { host } from "@/lib/room";
 import { current, nextUp, useGame } from "@/state/store";
 import { font, useColors } from "@/theme/tokens";
 
@@ -35,6 +36,8 @@ function Game() {
   const [moodOpen, setMoodOpen] = useState(false);
   const me = current({ players, turn }).name;
 
+  useEffect(() => { host.screen("wheel"); }, []);
+
   // New wedges from the AI mood: swap them in once the wheel is idle
   useEffect(() => {
     if (target === shown || spinning || result) return;
@@ -45,15 +48,19 @@ function Game() {
     if (spinning || !wheel.current) return;
     setSpinning(true); setHi(-1);
     const plan = planSpin(shown.length, power, dir, windup);
-    const win = await wheel.current.spin(plan);
+    const start = wheel.current.rotation();
+    host.spin(plan, start); // viewers replay the same spin from the same angle
+    const win = await wheel.current.spin(plan, start);
     setHi(win);
     const w = shown[win];
     const s = useGame.getState();
-    setResult({ label: w[0], text: fillTarget(w[1][Math.min(heat, w[1].length) - 1], current(s), s.players), ai: shown === aiWheel });
+    const r = { label: w[0], text: fillTarget(w[1][Math.min(heat, w[1].length) - 1], current(s), s.players), ai: shown === aiWheel };
+    setResult(r);
+    host.result(r);
     setSpinning(false);
   }
 
-  const close = () => { setResult(null); setHi(-1); };
+  const close = () => { setResult(null); setHi(-1); host.result(null); };
 
   return (
     <View style={{ flex: 1 }}>

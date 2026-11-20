@@ -1,17 +1,20 @@
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Svg, { Circle, G, Path } from "react-native-svg";
 
 import { AdultOnly } from "@/components/Guard";
 import { MoodSheet, Spark } from "@/components/Mood";
+import { LiveBadge } from "@/components/LiveBadge";
+import { ShareRoom } from "@/components/ShareRoom";
 import { Sheet } from "@/components/Sheet";
 import { Btn, Fine, Label, Press, RoundBtn, Screen } from "@/components/ui";
 import { GROUPS } from "@/game/content";
 import type { Heat } from "@/game/types";
 import { useInstall } from "@/lib/install";
+import { host } from "@/lib/room";
 import { useGame } from "@/state/store";
 import { FLAMES, HEAT_NAMES, font, mix, useColors } from "@/theme/tokens";
 
@@ -35,15 +38,20 @@ function Games() {
   const [moodOpen, setMoodOpen] = useState(false);
   const [guide, setGuide] = useState<null | "ios-guide" | "safari-needed">(null);
   const { canInstall, install } = useInstall();
+  const [shareOpen, setShareOpen] = useState(false);
+  useFocusEffect(useCallback(() => { host.screen("home"); }, []));
 
   return (
     <View style={{ flex: 1 }}>
       <Screen scroll>
         <View style={st.bar}>
+          <View style={{ flexShrink: 1 }}>
           <Text style={[st.brand, { color: c.ink }]}>
             Midnight <Text style={{ color: c.wine, fontFamily: font.displayItalic }}>Vibes</Text>
             <Text style={[st.badge, { color: c.rose }]}>  {GROUPS[group].name.toUpperCase()}</Text>
           </Text>
+          <View style={{ alignSelf: "flex-start" }}><LiveBadge /></View>
+          </View>
           <View style={st.hdr}>
             {canInstall && (
               <Press onPress={async () => { const r = await install(); if (r !== "prompted") setGuide(r); }} scale={0.96}
@@ -54,6 +62,13 @@ function Games() {
                 <Text style={[st.installText, { color: c.onAccent }]}>Install</Text>
               </Press>
             )}
+            <Press onPress={() => setShareOpen(true)} scale={0.92} accessibilityRole="button" accessibilityLabel="Play together: share a live room"
+              style={[st.share, { borderColor: c.line, backgroundColor: c.surface }]}>
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={c.ink} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <Circle cx={18} cy={5} r={2.6} /><Circle cx={6} cy={12} r={2.6} /><Circle cx={18} cy={19} r={2.6} />
+                <Path d="M8.3 10.8 15.7 6.2M8.3 13.2l7.4 4.6" />
+              </Svg>
+            </Press>
             <RoundBtn label="✎" a11y="Change players" onPress={() => router.push(group === "couple" ? "/couple" : "/players")} />
           </View>
         </View>
@@ -123,6 +138,7 @@ function Games() {
       </Screen>
 
       <MoodSheet open={moodOpen} onClose={() => setMoodOpen(false)} />
+      <ShareRoom open={shareOpen} onClose={() => setShareOpen(false)} />
       <InstallGuide kind={guide} onClose={() => setGuide(null)} />
     </View>
   );
@@ -159,6 +175,7 @@ const st = StyleSheet.create({
   brand: { fontFamily: font.display, fontSize: 25, flexShrink: 1 },
   badge: { fontFamily: font.heavy, fontSize: 11, letterSpacing: 1.2 },
   hdr: { flexDirection: "row", alignItems: "center", gap: 8 },
+  share: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   install: { height: 44, paddingLeft: 12, paddingRight: 16, borderRadius: 999, flexDirection: "row", alignItems: "center", gap: 6, shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 6 } },
   installText: { fontFamily: font.heavy, fontSize: 14 },
   hello: { fontFamily: font.display, fontSize: 37, lineHeight: 39 },

@@ -58,8 +58,11 @@ const Disc = memo(function Disc({ wedges, hi, c }: { wedges: Wedge[]; hi: number
 });
 
 export type WheelHandle = {
-  /** Spin to a plan (host or viewer). Resolves with the winning wedge once it has landed and pulsed. */
-  spin(plan: SpinPlan): Promise<number>;
+  /** Spin to a plan (host or viewer). `start` snaps the disc to the host's angle first (live rooms).
+   *  Resolves with the winning wedge once it has landed and pulsed. */
+  spin(plan: SpinPlan, start?: number): Promise<number>;
+  /** Current angle in radians (sent to viewers with each spin). */
+  rotation(): number;
   /** Shrink the old disc away and grow the new one in (wedge set changed). */
   swap(apply: () => void): Promise<void>;
 };
@@ -68,11 +71,13 @@ type Props = {
   wedges: Wedge[];
   hi: number;
   disabled?: boolean;
+  /** Text in the centre button ("Spin"; viewers see "Live") */
+  hubLabel?: string;
   /** Tap on Spin, or a flick with enough speed. dir 1 = clockwise. */
   onRequestSpin(power: number, dir: 1 | -1, windup: boolean): void;
 };
 
-export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi, disabled, onRequestSpin }, ref) {
+export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi, disabled, hubLabel = "Spin", onRequestSpin }, ref) {
   const c = useColors();
   const reduce = useReducedMotion();
   const n = wedges.length;
@@ -120,7 +125,9 @@ export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi,
   );
 
   useImperativeHandle(ref, () => ({
-    async spin(plan) {
+    rotation: () => rot.value,
+    async spin(plan, start) {
+      if (typeof start === "number") rot.value = start;
       spinning.value = true;
       dirRef.current = plan.dir;
       if (plan.windup && !reduce) await to(rot, rot.value - plan.dir * WINDUP_RAD, { duration: WINDUP_MS, easing: Easing.out(Easing.quad) });
@@ -185,9 +192,9 @@ export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi,
       </Animated.View>
       <View style={st.hubBox} pointerEvents="box-none">
         <Animated.View style={[st.ring, { backgroundColor: c.brass + "38" }, ring]} pointerEvents="none" />
-        <Pressable onPress={() => onRequestSpin(0.5 + Math.random() * 0.3, 1, true)} disabled={disabled} accessibilityRole="button" accessibilityLabel="Spin"
+        <Pressable onPress={() => onRequestSpin(0.5 + Math.random() * 0.3, 1, true)} disabled={disabled} accessibilityRole="button" accessibilityLabel={hubLabel}
           style={({ pressed }) => [st.hub, { backgroundColor: c.surface, borderColor: c.brass, transform: [{ scale: pressed ? 0.94 : 1 }] }]}>
-          <Text style={[st.hubText, { color: c.wine }]}>Spin</Text>
+          <Text style={[st.hubText, { color: c.wine }]}>{hubLabel}</Text>
         </Pressable>
       </View>
     </View>

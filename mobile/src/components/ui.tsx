@@ -6,6 +6,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGame } from "@/state/store";
+import { LiveBadge } from "./LiveBadge";
 import { FLAMES, HEAT_NAMES, font, useColors } from "@/theme/tokens";
 
 /** Phone-width column with safe-area padding. Scrolls when `scroll` is set. */
@@ -119,6 +120,7 @@ export function GameBar({ game, who }: { game: string; who: string }) {
       <View style={s.turn}>
         <Text style={[s.turnSmall, { color: c.muted }]}>{game}</Text>
         <Text style={[s.turnBig, { color: c.ink }]} numberOfLines={1}>{who}</Text>
+        <LiveBadge />
       </View>
       <Pressable onPress={() => setHeat(((heat % 3) + 1) as 1 | 2 | 3)} accessibilityLabel="Change heat level"
         style={[s.heatPill, { borderColor: c.line, backgroundColor: c.surface }]}>

@@ -20,3 +20,18 @@ export const supabase: SupabaseClient | null = supabaseReady
       },
     })
   : null;
+
+/** Everyone gets a user id, at least an anonymous one, so AI limits and rooms work without an account. */
+let pending: Promise<import("@supabase/supabase-js").Session | null> | null = null;
+export function ensureSession() {
+  if (!supabase) return Promise.resolve(null);
+  // One sign-in at a time, even if the AI and a room ask together
+  pending ??= (async () => {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) return data.session;
+    const { data: anon, error } = await supabase.auth.signInAnonymously();
+    if (error) throw new Error("Couldn't sign in. Check your connection.");
+    return anon.session;
+  })().finally(() => { pending = null; });
+  return pending;
+}
