@@ -1,9 +1,5 @@
 @echo off
 cd /d "%~dp0"
-if not exist .git (
-  git init
-  git add .
-  git commit -m "Initial commit: After Dark game app"
-)
+if not exist node_modules call npm install
 start "" http://localhost:5500
-python -m http.server 5500
+if exist .env (node --env-file=.env server.js) else (node server.js)

@@ -5,287 +5,919 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#7A1F3D">
 <title>After Dark</title>
+<meta name="description" content="Free adult party games for couples, friends, girls' night and boys' night: truth or dare and spin the wheel, tailored by AI to your mood. No download, no sign-up.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Figtree:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
+/* Layout: phone-first single column. Who's playing = group tiles. Home = game tiles. Truth or Dare = card deck. Wheel and AI results = bottom sheet. */
 :root{
   --bg:#F7E6E4; --surface:#FFF5F3; --ink:#3B0D1C; --muted:#8A5A66;
   --wine:#7A1F3D; --rose:#D9667B; --brass:#B8892B; --plum:#4E1D3A;
   --on-accent:#FFF5F3; --line:#E7C9C9;
+  --display:"Instrument Serif",Georgia,"Times New Roman",serif;
+  --body:Figtree,system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 @media (prefers-color-scheme: dark){
   :root{
-    color-scheme: dark;
+    color-scheme:dark;
     --bg:#1F0A14; --surface:#2E1220; --ink:#F7E1E4; --muted:#C29AA6;
     --wine:#A33256; --rose:#E07A8C; --brass:#D9AE4B; --plum:#6B2A50;
     --on-accent:#FFF5F3; --line:#4A2235;
   }
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Figtree,system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;
-  padding:env(safe-area-inset-top) 18px calc(env(safe-area-inset-bottom) + 24px);line-height:1.5}
-h1,h2,.serif{font-family:"Instrument Serif",Georgia,serif;font-weight:400}
-h1{font-size:3.4rem;line-height:1;font-style:italic;color:var(--wine)}
-h2{font-size:2rem;line-height:1.1;margin-bottom:12px}
-.screen{display:none;max-width:480px;margin:0 auto;padding-top:28px}
-.screen.on{display:block}
-p.lead{color:var(--muted);margin:10px 0 24px}
-button{font:inherit;cursor:pointer;border:none;border-radius:999px;padding:14px 22px;font-weight:600}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
-.primary{background:var(--wine);color:var(--on-accent);width:100%;font-size:1.05rem}
-.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
-.row{display:flex;gap:10px;flex-wrap:wrap}
-.seg{display:flex;background:var(--surface);border-radius:999px;padding:4px;margin-bottom:20px}
-.seg button{flex:1;background:transparent;color:var(--muted);padding:10px}
-.seg button[aria-pressed=true]{background:var(--wine);color:var(--on-accent)}
-label{display:block;font-weight:600;margin:16px 0 8px}
-input,select{font:inherit;width:100%;padding:12px 16px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.chip{background:var(--surface);border:1.5px solid var(--line);padding:6px 12px;border-radius:999px;font-size:.9rem}
-.chip button{background:none;padding:0 0 0 6px;color:var(--muted)}
-.heat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.heat button{background:var(--surface);color:var(--ink);border:1.5px solid var(--line);border-radius:16px;padding:12px 6px}
-.heat button[aria-pressed=true]{border-color:var(--rose);background:var(--rose);color:var(--on-accent)}
-.turn{text-align:center;color:var(--muted);margin-bottom:6px}
-.turn strong{color:var(--ink);font-size:1.2rem}
-.wheel-wrap{position:relative;width:min(88vw,380px);aspect-ratio:1;margin:10px auto 18px}
-canvas{width:100%;height:100%}
-.pointer{position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:0;height:0;
-  border-left:14px solid transparent;border-right:14px solid transparent;border-top:26px solid var(--brass);filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}
-.card{background:var(--surface);border-radius:28px 28px 28px 6px;padding:26px 22px;min-height:150px;margin:16px 0;border:1.5px solid var(--line)}
-.card .kind{color:var(--rose);font-weight:800;font-size:.85rem}
-.card .text{font-family:"Instrument Serif",Georgia,serif;font-size:1.75rem;line-height:1.2;margin-top:6px}
-.tabs{display:flex;gap:6px;margin:18px 0 4px}
-.tabs button{flex:1;background:transparent;color:var(--muted);border-bottom:2px solid transparent;border-radius:0;padding:10px 4px}
-.tabs button[aria-selected=true]{color:var(--ink);border-color:var(--wine)}
-.panel{display:none}.panel.on{display:block}
-.td{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.td .t{background:var(--plum);color:var(--on-accent);padding:22px;font-size:1.2rem}
-.td .d{background:var(--wine);color:var(--on-accent);padding:22px;font-size:1.2rem}
-.note{font-size:.85rem;color:var(--muted);text-align:center;margin-top:18px}
-.list li{list-style:none;padding:10px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
-.list small{color:var(--rose);font-weight:800}
-.back{background:none;color:var(--muted);padding:6px 0}
-@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{font-family:var(--body);background:var(--bg);color:var(--ink);line-height:1.5;-webkit-tap-highlight-color:transparent;
+  background-image:radial-gradient(130% 55% at 50% -12%,color-mix(in srgb,var(--rose) 26%,transparent),transparent 62%);background-attachment:fixed}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
+button:focus-visible,input:focus-visible{outline:3px solid var(--brass);outline-offset:3px}
+button:disabled{opacity:.55;cursor:default}
+
+.screen{display:none;max-width:440px;min-height:100%;margin:0 auto;flex-direction:column;gap:18px;
+  padding:calc(env(safe-area-inset-top,0px) + 18px) max(18px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 22px) max(18px,env(safe-area-inset-left,0px))}
+.screen.on{display:flex}
+.push{margin-top:auto}
+
+.btn{display:block;width:100%;border-radius:999px;padding:16px 22px;font-weight:600;font-size:1.05rem;text-align:center;transition:transform .12s ease}
+.btn:active:not(:disabled){transform:scale(.98)}
+.primary{background:var(--wine);color:var(--on-accent);box-shadow:0 8px 22px -10px color-mix(in srgb,var(--wine) 80%,transparent)}
+.ghost{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:0 18px;font-weight:600;flex:none}
+.quiet{color:var(--muted);font-weight:400;padding:12px;text-decoration:underline;text-underline-offset:3px}
+.fine{font-size:.85rem;color:var(--muted);text-align:center}
+.err{font-size:.9rem;color:var(--rose);font-weight:600}
+label,.label{display:block;font-weight:600;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+input{font:inherit;font-size:1.05rem;width:100%;padding:15px 18px;border-radius:16px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
+input::placeholder{color:var(--muted);opacity:.8}
+
+/* Gate */
+.seal{width:64px;height:64px;border-radius:50%;border:2px solid var(--brass);color:var(--brass);display:grid;place-items:center;font-weight:800;letter-spacing:.04em;margin-top:8vh}
+.mark{font-family:var(--display);font-weight:400;font-size:clamp(3.6rem,18vw,5rem);line-height:.92}
+.mark em{color:var(--wine);display:block}
+.lead{color:var(--muted);font-size:1.05rem;max-width:32ch}
+.title{font-family:var(--display);font-weight:400;font-size:2.6rem;line-height:1.02;text-wrap:balance;margin-top:3vh}
+
+/* Who's playing: group tiles */
+.groups{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.gTile{position:relative;overflow:hidden;border-radius:26px;padding:18px;min-height:168px;display:flex;flex-direction:column;justify-content:space-between;
+  text-align:left;color:var(--on-accent);transition:transform .15s;animation:tileIn .45s both}
+.gTile:nth-child(2){animation-delay:.06s}.gTile:nth-child(3){animation-delay:.12s}.gTile:nth-child(4){animation-delay:.18s}
+.gTile:active{transform:scale(.96)}
+.gTile .sym{font-family:var(--display);font-size:2.6rem;line-height:1;position:relative;z-index:1}
+.gTile b{font-family:var(--display);font-weight:400;font-size:1.7rem;line-height:1;display:block}
+.gTile small{display:block;font-size:.8rem;opacity:.85;margin-top:4px;line-height:1.3}
+.gTile::after{content:"";position:absolute;width:130px;height:130px;border-radius:50%;right:-44px;top:-44px;background:color-mix(in srgb,var(--on-accent) 11%,transparent)}
+.gTile.couple{grid-column:1/-1;min-height:150px;background:linear-gradient(150deg,var(--wine),var(--plum))}
+.gTile.friends{background:linear-gradient(160deg,var(--brass),color-mix(in srgb,var(--brass) 55%,var(--wine)))}
+.gTile.girls{background:linear-gradient(160deg,var(--rose),var(--wine))}
+.gTile.boys{grid-column:1/-1;min-height:0;flex-direction:row;align-items:center;gap:16px;background:linear-gradient(160deg,var(--plum),color-mix(in srgb,var(--plum) 60%,#000))}
+@keyframes tileIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+
+/* Names */
+.names{display:grid;gap:6px}
+.amp{font-family:var(--display);font-style:italic;font-size:1.8rem;color:var(--rose);text-align:center;line-height:1}
+.addRow{display:flex;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:8px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);font-size:.92rem}
+.chip.player{display:inline-flex;align-items:center;gap:4px;padding-right:6px;animation:tileIn .25s both}
+.chip.player button{color:var(--muted);padding:0 6px;font-size:1.1rem;line-height:1}
+.sexRow{display:flex;align-items:center;gap:10px;margin-top:10px}
+.sexRow .seg button[aria-pressed=true]{background:var(--rose);border-color:var(--rose);color:var(--on-accent)}
+.chip.player .g{font-size:.72rem;font-weight:700;color:var(--rose);margin-left:4px}
+.chip.player .nm{padding:0}
+.chip.player .nm em{font-style:normal;font-size:.72rem;color:var(--muted);margin-left:4px}
+.prefs{background:var(--surface);border:1.5px solid var(--line);border-radius:20px;padding:16px;display:grid;gap:12px;animation:tileIn .25s both}
+.prefs p{font-weight:600}
+.prefs .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.hint{font-size:.82rem;color:var(--muted)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{padding:8px 12px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);font-size:.88rem;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* Header */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px}
+.round{width:44px;height:44px;flex:none;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);font-size:1.3rem;line-height:1;display:grid;place-items:center}
+.brand{font-family:var(--display);font-size:1.5rem}
+.brand em{color:var(--wine)}
+.badge{font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--rose);margin-left:8px;font-family:var(--body)}
+.turn{text-align:center;min-width:0}
+.turn small{display:block;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.turn strong{font-family:var(--display);font-weight:400;font-size:1.6rem;line-height:1.1;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.heatPill{height:44px;padding:0 14px;flex:none;border-radius:999px;background:var(--surface);border:1.5px solid var(--line);font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:6px}
+.heatPill i{font-style:normal;color:var(--rose);letter-spacing:1px;font-size:.7rem}
+
+/* Heat control */
+.heat{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--surface);border:1.5px solid var(--line);border-radius:999px;padding:4px}
+.heat button{border-radius:999px;padding:10px 4px;font-weight:600;color:var(--muted)}
+.heat button[aria-pressed=true]{background:var(--rose);color:var(--on-accent)}
+.flames{display:block;font-size:.6rem;letter-spacing:2px;opacity:.85}
+
+/* Home */
+.hello{font-family:var(--display);font-weight:400;font-size:2.3rem;line-height:1.05;text-wrap:balance}
+.hello span{color:var(--wine);font-style:italic}
+.games{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.game{position:relative;overflow:hidden;border-radius:26px;padding:18px;min-height:210px;text-align:left;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;color:var(--on-accent);transition:transform .12s}
+.game:active{transform:scale(.97)}
+.game b{font-family:var(--display);font-weight:400;font-size:1.75rem;line-height:1.02}
+.game span{font-size:.85rem;opacity:.85;line-height:1.3}
+.game.tod{background:linear-gradient(165deg,var(--plum),color-mix(in srgb,var(--plum) 70%,#000))}
+.game.wheel{background:linear-gradient(165deg,var(--wine),color-mix(in srgb,var(--wine) 65%,var(--plum)))}
+.game.ai{grid-column:1/-1;min-height:0;flex-direction:row;align-items:center;gap:14px;background:var(--surface);color:var(--ink);border:1.5px solid var(--line)}
+.game.ai b{font-size:1.5rem}
+.game.ai span{color:var(--muted);opacity:1}
+.game.ai .go{margin-left:auto;color:var(--rose);font-size:.8rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;flex:none}
+.art-cards{position:absolute;top:18px;right:18px;width:70px;height:88px}
+.art-cards i{position:absolute;inset:0;border-radius:12px;background:var(--on-accent)}
+.art-cards i:first-child{transform:rotate(-12deg) translate(-10px,4px);background:var(--rose)}
+.art-cards i:last-child{transform:rotate(8deg);display:grid;place-items:center}
+.art-cards i:last-child::after{content:"?";font-family:var(--display);font-style:italic;font-size:2.4rem;color:var(--plum)}
+.art-wheel{position:absolute;top:14px;right:-22px;width:120px;height:120px;border-radius:50%;border:5px solid var(--brass);
+  background:conic-gradient(var(--rose) 0 45deg,var(--plum) 0 90deg,var(--on-accent) 0 135deg,var(--plum) 0 180deg,var(--rose) 0 225deg,var(--plum) 0 270deg,var(--on-accent) 0 315deg,var(--plum) 0)}
+.art-spark{flex:none;width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--brass);color:var(--on-accent);font-size:1.5rem}
+
+/* Truth or dare deck */
+.deck{position:relative;flex:1;display:flex;min-height:360px;margin-top:14px;perspective:1200px}
+.deck::before,.deck::after{content:"";position:absolute;border-radius:30px;background:var(--rose)}
+.deck::before{left:22px;right:22px;top:-14px;bottom:14px;opacity:.25}
+.deck::after{left:11px;right:11px;top:-7px;bottom:7px;opacity:.5}
+.card{position:relative;z-index:1;flex:1;border-radius:30px;padding:26px 22px 20px;display:flex;flex-direction:column;will-change:transform;
+  background:linear-gradient(160deg,var(--wine),var(--plum));color:var(--on-accent);box-shadow:0 24px 40px -22px var(--plum)}
+.card .who,.sheet .who{font-size:.78rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;opacity:.8;text-align:center}
+.card .text{font-family:var(--display);font-size:clamp(1.9rem,8vw,2.4rem);line-height:1.12;text-wrap:balance;text-align:center;margin:auto 0}
+.card .kind,.sheet .kind{color:var(--brass);font-weight:800;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;text-align:center}
+.card.shuffling .text{font-style:italic;color:color-mix(in srgb,var(--on-accent) 85%,var(--brass))}
+.onCard{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;margin-top:18px}
+.onCard .skip{color:var(--on-accent);border:1.5px solid color-mix(in srgb,var(--on-accent) 40%,transparent);border-radius:999px;padding:14px;font-weight:600}
+.onCard .done{background:var(--on-accent);color:var(--wine);border-radius:999px;padding:14px;font-weight:800}
+.pair{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+.pick{border-radius:22px;padding:20px 18px;text-align:left;color:var(--on-accent);display:grid;gap:2px;transition:transform .12s}
+.pick:active:not(:disabled){transform:scale(.97)}
+.pick b{font-family:var(--display);font-weight:400;font-style:italic;font-size:2.1rem;line-height:1}
+.pick span{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;opacity:.85;font-weight:600}
+.pick.t{background:var(--plum)}
+.pick.d{background:var(--wine)}
+.rand{width:68px;height:68px;border-radius:50%;background:var(--surface);border:2px solid var(--brass);color:var(--brass);
+  display:grid;place-items:center;align-content:center;gap:1px;font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  box-shadow:0 8px 18px -10px var(--plum);transition:transform .12s}
+.rand svg{width:26px;height:26px}
+.rand:active:not(:disabled){transform:scale(.92) rotate(-8deg)}
+@media (max-width:360px){.pick b{font-size:1.7rem}.rand{width:58px;height:58px}}
+
+/* Wheel: the disc is drawn once and turned with a CSS transform, so spinning stays on the GPU */
+.wheelWrap{flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px}
+.wheel{position:relative;width:min(100%,360px);aspect-ratio:1;max-width:100%;margin:0 auto;touch-action:none;user-select:none;-webkit-user-select:none}
+.wheel::before{content:"";position:absolute;inset:3%;border-radius:50%;box-shadow:0 22px 38px -12px color-mix(in srgb,var(--plum) 70%,transparent)}
+.wheel canvas{position:relative;width:100%;height:100%;display:block;will-change:transform;cursor:grab}
+.wheel.dragging canvas{cursor:grabbing}
+.pointer{position:absolute;top:-12px;left:50%;margin-left:-16px;width:32px;height:40px;z-index:2;transform-origin:50% 12px;
+  filter:drop-shadow(0 4px 4px rgba(0,0,0,.25))}
+.pointer svg{width:100%;height:100%;display:block}
+.hub{position:absolute;inset:0;margin:auto;width:30%;height:30%;border-radius:50%;background:var(--surface);color:var(--wine);z-index:1;
+  border:3px solid var(--brass);font-family:var(--display);font-style:italic;font-size:clamp(1.4rem,7vw,2rem);box-shadow:0 6px 16px rgba(0,0,0,.25);transition:transform .15s}
+.hub:not(:disabled){animation:breathe 2.6s ease-in-out infinite}
+.hub:active:not(:disabled){transform:scale(.94)}
+.hub:disabled{opacity:1}
+@keyframes breathe{50%{box-shadow:0 6px 16px rgba(0,0,0,.25),0 0 0 10px color-mix(in srgb,var(--brass) 22%,transparent)}}
+
+/* Mood: one bar in each game, set once, used by both games */
+.moodBar{display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;border-radius:999px;background:var(--surface);border:1.5px solid var(--line);text-align:left;font-weight:600;font-size:.92rem}
+.spark{color:var(--brass);font-size:1rem;line-height:1;display:inline-block}
+.moodBar .mt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.moodBar .mt em{font-style:normal;color:var(--muted);font-weight:400}
+.moodBar .go{color:var(--rose);font-size:.8rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.moodBar.set{border-color:color-mix(in srgb,var(--brass) 60%,var(--line))}
+.loading .spark,.game.ai.loading .art-spark{animation:twinkle 1s ease-in-out infinite}
+@keyframes twinkle{50%{transform:scale(.7) rotate(45deg);opacity:.5}}
+.sheet.light{background:var(--bg);color:var(--ink);gap:14px}
+.sheet.light .grab{background:var(--line)}
+.sheet.light h3{font-family:var(--display);font-weight:400;font-size:2rem;line-height:1.05}
+.sheet.light .chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.sheet .fine{text-align:left}
+
+/* Bottom sheet */
+.scrim{position:fixed;inset:0;background:rgba(20,4,12,.45);z-index:10;animation:fade .2s}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:11;max-width:440px;margin:0 auto;border-radius:30px 30px 0 0;
+  padding:12px max(22px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 22px) max(22px,env(safe-area-inset-left,0px));
+  background:linear-gradient(160deg,var(--wine),var(--plum));color:var(--on-accent);display:flex;flex-direction:column;gap:10px;animation:up .3s ease-out}
+.grab{width:40px;height:5px;border-radius:9px;background:color-mix(in srgb,var(--on-accent) 40%,transparent);margin:0 auto 8px}
+.sheet .text{font-family:var(--display);font-size:clamp(1.8rem,7.5vw,2.3rem);line-height:1.12;text-align:center;text-wrap:balance;margin:10px 0 6px}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
+.sheet.closing{animation:down .22s ease-in forwards}
+.scrim.closing{animation:fadeOut .22s forwards}
+@keyframes down{from{transform:none}to{transform:translateY(100%)}}
+@keyframes fadeOut{to{opacity:0}}
+@keyframes fade{from{opacity:0}}
+
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
 
 <!-- Age gate -->
 <section class="screen on" id="gate">
-  <h1>After Dark</h1>
-  <p class="lead">Flirty games for couples and parties. This app contains adult content.</p>
-  <h2>Are you 18 or older?</h2>
-  <div class="row" style="margin-top:16px">
-    <button class="primary" id="ageYes">I'm 18+, enter</button>
-    <button class="ghost" style="width:100%" id="ageNo">I'm under 18</button>
+  <div class="seal" aria-hidden="true">18+</div>
+  <h1 class="mark">After <em>Dark</em></h1>
+  <p class="lead">Truth or dare, spin the wheel, and fresh ideas for your crowd. For couples, friends, girls' night and boys' night.</p>
+  <div class="push">
+    <button class="btn primary" id="ageYes">I'm 18+, let's play</button>
+    <button class="btn quiet" id="ageNo">I'm under 18</button>
   </div>
-  <p class="note">Play only with willing adults. Anyone can pass at any time.</p>
+  <p class="fine">Play only with willing adults. Anyone can skip anything.</p>
 </section>
 
-<!-- Under 18 -->
 <section class="screen" id="blocked">
-  <h2>This app is for adults only.</h2>
+  <h2 class="title">This game is for adults only.</h2>
   <p class="lead">Come back when you're 18.</p>
 </section>
 
-<!-- Setup -->
-<section class="screen" id="setup">
-  <h1>Who's playing?</h1>
-  <p class="lead">Pick a mode, add names and set the heat.</p>
-  <div class="seg" role="group" aria-label="Mode">
-    <button data-mode="couples" aria-pressed="true">Couples</button>
-    <button data-mode="party" aria-pressed="false">Party</button>
+<!-- Who's playing -->
+<section class="screen" id="group">
+  <h2 class="title">Who's playing tonight?</h2>
+  <div class="groups">
+    <button class="gTile couple" data-group="couple"><span class="sym" aria-hidden="true">♡</span><span><b>Couple</b><small>Just the two of you</small></span></button>
+    <button class="gTile friends" data-group="friends"><span class="sym" aria-hidden="true">✶</span><span><b>Friends</b><small>Mixed group, 2 to 12</small></span></button>
+    <button class="gTile girls" data-group="girls"><span class="sym" aria-hidden="true">♀</span><span><b>Girls' night</b><small>The girls only</small></span></button>
+    <button class="gTile boys" data-group="boys"><span class="sym" aria-hidden="true">♂</span><span><b>Boys' night</b><small>The lads only</small></span></button>
   </div>
-  <div id="coupleNames">
-    <label for="p1">Player one</label><input id="p1" placeholder="Name">
-    <label for="p2">Player two</label><input id="p2" placeholder="Name">
+</section>
+
+<!-- Couple names -->
+<section class="screen" id="coupleNames">
+  <h2 class="title">What should we call you two?</h2>
+  <div class="names">
+    <div><label for="p1" id="l1">Him</label><input id="p1" placeholder="Name" autocomplete="off"></div>
+    <span class="amp" aria-hidden="true">&amp;</span>
+    <div><label for="p2" id="l2">Her</label><input id="p2" placeholder="Name" autocomplete="off"></div>
   </div>
-  <div id="partyNames" hidden>
+  <div>
+    <span class="label" id="pairLabel">You are</span>
+    <div class="seg" role="group" aria-labelledby="pairLabel">
+      <button data-pair="mf" aria-pressed="true">Him &amp; Her</button>
+      <button data-pair="ff" aria-pressed="false">Her &amp; Her</button>
+      <button data-pair="mm" aria-pressed="false">Him &amp; Him</button>
+      <button data-pair="any" aria-pressed="false">Rather not say</button>
+    </div>
+  </div>
+  <div class="push">
+    <button class="btn primary" id="coupleGo">Continue</button>
+    <button class="btn quiet" data-back-group>Not a couple? Change group</button>
+  </div>
+</section>
+
+<!-- Group names -->
+<section class="screen" id="groupNames">
+  <h2 class="title" id="groupTitle">Who's in?</h2>
+  <div>
     <label for="pName">Add players</label>
-    <div class="row" style="flex-wrap:nowrap">
-      <input id="pName" placeholder="Name">
+    <div class="addRow">
+      <input id="pName" placeholder="Name" autocomplete="off" maxlength="24">
       <button class="ghost" id="addP">Add</button>
     </div>
-    <div class="chips" id="chips"></div>
-  </div>
-  <label>Heat level</label>
-  <div class="heat" role="group" aria-label="Heat level">
-    <button data-heat="1" aria-pressed="true">Flirty</button>
-    <button data-heat="2" aria-pressed="false">Steamy</button>
-    <button data-heat="3" aria-pressed="false">Spicy</button>
-  </div>
-  <p id="setupErr" class="note" role="alert"></p>
-  <button class="primary" id="start" style="margin-top:14px">Start game</button>
-</section>
-
-<!-- Game -->
-<section class="screen" id="game">
-  <button class="back" id="toSetup">‹ Players and settings</button>
-  <p class="turn">Your turn, <strong id="who"></strong></p>
-  <div class="tabs" role="tablist">
-    <button role="tab" aria-selected="true" data-tab="wheel">Spin the wheel</button>
-    <button role="tab" aria-selected="false" data-tab="tod">Truth or dare</button>
-    <button role="tab" aria-selected="false" data-tab="mine">My prompts</button>
-  </div>
-
-  <div class="panel on" id="wheel">
-    <div class="wheel-wrap"><div class="pointer"></div><canvas id="cv" width="760" height="760" aria-label="Game wheel"></canvas></div>
-    <button class="primary" id="spin">Spin</button>
-  </div>
-
-  <div class="panel" id="tod">
-    <div class="td" style="margin-top:16px">
-      <button class="t" id="pickT">Truth</button>
-      <button class="d" id="pickD">Dare</button>
+    <div class="sexRow" id="sexPick" role="group" aria-label="Player is">
+      <div class="seg">
+        <button data-sex="m" aria-pressed="true">He</button>
+        <button data-sex="f" aria-pressed="false">She</button>
+        <button data-sex="" aria-pressed="false">Rather not say</button>
+      </div>
     </div>
   </div>
-
-  <div class="panel" id="mine">
-    <label for="cText">Write your own</label>
-    <input id="cText" placeholder="e.g. Describe our perfect night in">
-    <div class="row" style="margin-top:10px">
-      <select id="cType" style="flex:1"><option value="truth">Truth</option><option value="dare">Dare</option></select>
-      <button class="ghost" id="cAdd">Add prompt</button>
-    </div>
-    <ul class="list" id="cList" style="margin-top:14px"></ul>
-    <p class="note" id="cEmpty">No custom prompts yet. Added ones mix into the deck for this session.</p>
+  <div class="chips" id="playerChips"></div>
+  <p class="hint" id="prefHint" hidden>Flirty dares pair players up with the opposite sex. Tap a name to change who they're into.</p>
+  <div class="prefs" id="prefs" hidden>
+    <p id="prefTitle"></p>
+    <div class="row"><span class="label" style="margin:0">Is</span>
+      <div class="seg" id="prefSex"><button data-v="m">He</button><button data-v="f">She</button><button data-v="">Rather not say</button></div></div>
+    <div class="row"><span class="label" style="margin:0">Into</span>
+      <div class="seg" id="prefInto"><button data-v="opp">Opposite sex</button><button data-v="same">Same sex</button><button data-v="both">Both</button></div></div>
+    <button class="btn quiet" id="prefDone" style="padding:4px">Done</button>
   </div>
-
-  <div class="card" id="card" aria-live="polite">
-    <div class="kind" id="kind">Ready</div>
-    <div class="text" id="text">Spin the wheel or pick truth or dare.</div>
+  <p class="err" id="groupErr" role="alert"></p>
+  <div class="push">
+    <button class="btn primary" id="groupGo">Continue</button>
+    <button class="btn quiet" data-back-group>Change group</button>
   </div>
-  <div class="row">
-    <button class="ghost" style="flex:1" id="pass">Pass</button>
-    <button class="primary" style="flex:2" id="done">Done, next player</button>
-  </div>
-  <p class="note">Anyone can pass, no questions asked.</p>
 </section>
+
+<!-- Home: choose a game -->
+<section class="screen" id="home">
+  <header class="bar">
+    <span class="brand">After <em>Dark</em><span class="badge" id="groupBadge"></span></span>
+    <button class="round" id="editPlayers" aria-label="Change players">✎</button>
+  </header>
+  <h2 class="hello">Hey, <span id="names"></span>. What are we playing?</h2>
+  <div>
+    <span class="label" id="heatLabel">How hot tonight?</span>
+    <div class="heat" role="group" aria-labelledby="heatLabel">
+      <button data-heat="1" aria-pressed="true">Flirty<span class="flames">●○○</span></button>
+      <button data-heat="2" aria-pressed="false">Steamy<span class="flames">●●○</span></button>
+      <button data-heat="3" aria-pressed="false">Spicy<span class="flames">●●●</span></button>
+    </div>
+  </div>
+  <div class="games">
+    <button class="game tod" data-go="tod"><div class="art-cards" aria-hidden="true"><i></i><i></i></div><b>Truth or Dare</b><span>Take turns: answer honestly or do the dare.</span></button>
+    <button class="game wheel" data-go="wheel"><div class="art-wheel" aria-hidden="true"></div><b>Spin the Wheel</b><span>Spin and do whatever it lands on.</span></button>
+    <button class="game ai" data-mood><div class="art-spark" aria-hidden="true">✦</div><div style="min-width:0"><b data-moodtitle>Set the mood</b><br><span data-moodsub>AI tailors both games to it, like "kissing".</span></div><span class="go" data-moodgo>Set</span></button>
+  </div>
+</section>
+
+<!-- Truth or Dare -->
+<section class="screen" id="tod">
+  <header class="bar">
+    <button class="round" data-home aria-label="Back to games">‹</button>
+    <p class="turn"><small>Truth or Dare</small><strong data-who></strong></p>
+    <button class="heatPill" data-heatpill aria-label="Change heat level"></button>
+  </header>
+  <button class="moodBar" data-mood><span class="spark" aria-hidden="true">✦</span><span class="mt" data-moodtext></span><span class="go" data-moodgo>Set</span></button>
+  <div class="deck">
+    <div class="card" id="todCard" aria-live="polite">
+      <p class="who" id="todWho"></p>
+      <p class="text" id="todText"></p>
+      <p class="kind" id="todKind"></p>
+      <div class="onCard" id="todAct" hidden>
+        <button class="skip" id="todSkip">Skip</button>
+        <button class="done" id="todDone"></button>
+      </div>
+    </div>
+  </div>
+  <div class="pair" id="todPick">
+    <button class="pick t" id="pickT"><span>Answer honestly</span><b>Truth</b></button>
+    <button class="rand" id="pickR" aria-label="Random: let the deck choose truth or dare">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>
+      Random
+    </button>
+    <button class="pick d" id="pickD"><span>Do it now</span><b>Dare</b></button>
+  </div>
+</section>
+
+<!-- Spin the Wheel -->
+<section class="screen" id="wheel">
+  <header class="bar">
+    <button class="round" data-home aria-label="Back to games">‹</button>
+    <p class="turn"><small>Spin the Wheel</small><strong data-who></strong></p>
+    <button class="heatPill" data-heatpill aria-label="Change heat level"></button>
+  </header>
+  <button class="moodBar" data-mood><span class="spark" aria-hidden="true">✦</span><span class="mt" data-moodtext></span><span class="go" data-moodgo>Set</span></button>
+  <div class="wheelWrap">
+    <div class="wheel" id="wheelEl">
+      <div class="pointer" id="pointer" aria-hidden="true"><svg viewBox="0 0 32 40"><path d="M16 39 3 13a13 13 0 1 1 26 0Z" fill="var(--ink)"/><circle cx="16" cy="12" r="5" fill="var(--brass)"/></svg></div>
+      <canvas id="cv" width="760" height="760" role="img" aria-label="Game wheel"></canvas>
+      <button class="hub" id="spin">Spin</button>
+    </div>
+    <p class="fine">Tap Spin, or flick the wheel with your finger.</p>
+  </div>
+</section>
+
+<!-- Result sheet for the wheel -->
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetText" hidden>
+  <div class="grab" aria-hidden="true"></div>
+  <p class="who" id="sheetWho"></p>
+  <p class="kind" id="sheetKind"></p>
+  <p class="text" id="sheetText"></p>
+  <div class="onCard">
+    <button class="skip" id="sheetSkip">Skip</button>
+    <button class="done" id="sheetDone"></button>
+  </div>
+</div>
+
+<!-- Mood sheet: AI tailors Truth or Dare and the wheel to it -->
+<div class="sheet light" id="moodSheet" role="dialog" aria-modal="true" aria-labelledby="moodTitle" hidden>
+  <div class="grab" aria-hidden="true"></div>
+  <h3 id="moodTitle">What's the mood?</h3>
+  <input id="vibe" maxlength="200" placeholder="e.g. kissing, anniversary, getting to know you" autocomplete="off" aria-labelledby="moodTitle">
+  <div class="chips" id="moodChips"></div>
+  <p class="fine" id="moodNote">AI writes new truths, dares and wheel wedges around it, at your heat level.</p>
+  <button class="btn primary" id="moodGo">Set the mood</button>
+  <button class="btn quiet" id="moodClear" hidden style="padding:4px">Clear the mood</button>
+</div>
 
 <script>
-const P = {
- couples:{
-  truth:[
-   ["What was your first impression of me?","What's one thing I do that instantly makes you smile?","When did you first want to kiss me?","Which outfit of mine is your favourite?","What's the most romantic thing you've imagined us doing?"],
-   ["Where's the most daring place you've wanted to kiss me?","What's a fantasy date you've never told me about?","What's something I do that drives you wild?","When did you find me most attractive?","What's a secret wish for our next night in?"],
-   ["What's one thing you've wanted to try with me but never asked?","Where do you most love being kissed?","What should I wear next date night?","What's the boldest text you'd send me right now?","What's your favourite memory of us alone?"]],
-  dare:[
-   ["Give your partner a 30-second shoulder massage.","Whisper three things you love about them.","Slow dance together to the next song.","Kiss their hand like royalty.","Hold eye contact for 30 seconds without laughing."],
-   ["Kiss your partner's neck slowly.","Sit on your partner's lap until your next turn.","Describe your next kiss before you give it.","Give a 1-minute massage wherever they choose, above the waist.","Blindfold your partner and kiss them somewhere unexpected."],
-   ["Remove one item of clothing.","Let your partner choose where you kiss them.","Seduce your partner using only your voice for 30 seconds.","Give your partner a 20-second kiss.","Trade one item of clothing with your partner."]]
+// ---------- Content ----------
+// Decks: type -> heat level (0 Flirty, 1 Steamy, 2 Spicy)
+const COUPLE = {
+ truth:[
+  ["What was your first impression of me?","What's one thing I do that instantly makes you smile?","When did you first want to kiss me?","Which outfit of mine is your favourite?","What's the most romantic thing you've imagined us doing?",
+   "What song reminds you of us?","What's a small thing I did that you still think about?","What did you think the first time you heard my voice?","What's your favourite way to spend a lazy morning with me?","Which of my habits do you secretly find cute?",
+   "What's a compliment from me you've never forgotten?","If we had a date tonight anywhere in the world, where would it be?","What's one thing you'd love me to do more often?","When do you feel most attracted to me on an ordinary day?","What was going through your head on our first date?"],
+  ["Where's the most daring place you've wanted to kiss me?","What's a fantasy date you've never told me about?","What's something I do that drives you wild?","When did you find me most attractive?","What's a secret wish for our next night in?",
+   "What's the most attractive thing I've ever worn?","Describe the best kiss we've ever had.","When did you want me but couldn't say so?","What's a text from me that got you flustered?","Which part of me do you find hardest to stop looking at?",
+   "Where would you love to be alone with me?","What's something I whisper that gets to you?","Which romantic movie scene would you want us to recreate?","How do you like to be touched when you're stressed?","What's the first thing you notice when I walk into a room?"],
+  ["What's one thing you've wanted to try with me but never asked?","Where do you most love being kissed?","What should I wear next date night?","What's the boldest text you'd send me right now?","What's your favourite memory of us alone?",
+   "What's a fantasy you'd want to try with me this year?","What's the most daring thing you'd do with me on holiday?","What do you think about when you miss me at night?","What could I say that would instantly turn you on?","Which of our nights together would you replay?",
+   "What would you like me to take charge of?","What outfit would you like me to surprise you in?","What's your favourite way for me to wake you up?","What's something new you'd like us to explore together?","Describe your ideal night with me, from start to finish."]
+ ],
+ dare:[
+  ["Give your partner a 30-second shoulder massage.","Whisper three things you love about them.","Slow dance together to the next song.","Kiss their hand like royalty.","Hold eye contact for 30 seconds without laughing.",
+   "Give your partner a slow forehead kiss.","Sing one line of a love song to your partner.","Draw a heart on your partner's palm with your fingertip.","Act out the moment you first met, in 30 seconds.","Give your partner the longest hug you can manage.",
+   "Tell your partner your favourite thing about their face without looking away.","Feed your partner a bite of something sweet.","Play with your partner's hair for one minute.","Write a two-line love poem and read it aloud.","Give your partner your best flirty look."],
+  ["Kiss your partner's neck slowly.","Sit on your partner's lap until your next turn.","Describe your next kiss before you give it.","Give a 1-minute massage wherever they choose, above the waist.","Blindfold your partner and kiss them somewhere unexpected.",
+   "Kiss your partner's wrist, then their cheek, then their lips.","Trace a word on your partner's back and let them guess it.","Kiss your partner slowly without using your hands.","Whisper what you want to do after this game.","Hold eye contact while your partner runs their fingers through your hair.",
+   "Kiss your partner's shoulder for ten seconds.","Give your partner a one-minute foot massage.","Dance close for one song, no talking.","Close your eyes and find your partner's lips.","Leave three kisses along your partner's jawline."],
+  ["Remove one item of clothing.","Let your partner choose where you kiss them.","Seduce your partner using only your voice for 30 seconds.","Give your partner a 20-second kiss.","Trade one item of clothing with your partner.",
+   "Let your partner remove one item of your clothing.","Kiss your partner wherever they point, slowly.","Describe exactly how you'd undress your partner.","Kiss your partner for 30 seconds without stopping.","Lie back and let your partner kiss you anywhere they like for 30 seconds.",
+   "Give your partner a massage with your shirt off.","Whisper your wildest idea for tonight.","Stay blindfolded until your next turn.","Show your partner exactly how you like to be kissed.","Slowly undo one button or zip on your partner's clothes."]
+ ]
+};
+// Shared deck for every group; girls' and boys' nights add their own extras on top
+const GROUP = {
+ truth:[
+  ["Who in this room would you call at 3am in an emergency?","What's the most embarrassing thing you've done to impress a crush?","What's the worst date you've ever been on?","Who was your first celebrity crush?",
+   "What's a secret talent nobody here knows about?","What's the pettiest reason you've stopped talking to someone?","Which player here would survive longest in a zombie film?","What's the last lie you told?"],
+  ["Who here has the best smile?","What's the most daring thing you've done on a night out?","What's the worst pickup line that actually worked on you?","Have you ever had a crush on someone in this room? No names needed.",
+   "What's the boldest text you've ever sent?","Who here would you trust to set you up on a date?","What's your biggest turn-off?","What's the wildest place you've been kissed?"],
+  ["Who here do you think is the best kisser?","What's a fantasy you'd admit out loud tonight?","Rate your last kiss out of ten.","What's the boldest thing you've done to get someone's attention?",
+   "Who here would you kiss if you had to pick right now?","What's the most scandalous thing on your phone right now?","What's the most memorable night-out story you'd actually share?","What's something you've done that you'd never tell your parents?"]
+ ],
+ dare:[
+  ["Do an impression of another player until someone guesses who.","Talk in an accent of the group's choice until your next turn.","Let the group choose your phone wallpaper for the night.","Do ten squats while saying the alphabet backwards.",
+   "Give every player a genuine compliment.","Show the group the last photo in your camera roll.","Sing the chorus of a song the group picks.","Do a 10-second runway walk across the room.",
+   "Hold eye contact with {target} for 20 seconds without laughing."],
+  ["Give {target} a 20-second shoulder massage, if they're up for it.","Read your last sent text out loud.","Let the group scroll your camera roll for 10 seconds.","Whisper something flirty to {target}.",
+   "Swap a piece of clothing with {target}.","Do your most seductive dance for 15 seconds.","Let another player style your hair however they like.","Serenade {target} for 20 seconds.",
+   "Slow dance with {target} for 20 seconds, if they're up for it.","Give {target} your best pickup line, delivered with total confidence."],
+  ["Kiss {target} on the cheek, if they're up for it.","Remove one accessory or item of clothing.","Sit on {target}'s lap until your next turn, if they're up for it.","Let the player on your left choose your next dare.",
+   "Give a chair your best 20-second lap dance.","Text your crush 'thinking of you' and show the group the reply.","Let the group read your last three searches.","Strike your most sultry pose and hold it for 10 seconds.",
+   "Kiss {target}'s hand, then their neck, if they're up for it.","Hold eye contact with {target} for 20 seconds, as close as they'll let you."]
+ ]
+};
+const EXTRA = {
+ girls:{
+  truth:[["Which player here would you swap wardrobes with?","What's the worst haircut you've ever had?"],["Who's your most regrettable ex, and why?","What's the most romantic thing a date has done for you?"],["What's the boldest move you've ever made on someone?","What's your guilty-pleasure fantasy?"]],
+  dare:[["Do your best catwalk and finish with a pose.","Narrate another player's look like a beauty vlogger."],["Send a flirty emoji to the last person you texted.","Let the group pick a new look for your next selfie."],["Show the group your best seductive dance move.","Read your flirtiest text conversation out loud."]]
  },
- party:{
-  truth:[
-   ["Who here would you most want to go on a date with?","What's the most embarrassing text you've sent a crush?","What's the worst pickup line that worked on you?","Who was your first celebrity crush?","What's your biggest turn-off?"],
-   ["Who in this room has the best smile?","What's the most daring thing you've done on a night out?","Ever had a crush on a friend's partner? No names needed.","What's the wildest place you've been kissed?","What's a secret you've never told this group?"],
-   ["Who here would you kiss if you had to pick right now?","What's a fantasy you'd admit out loud?","Rate your last kiss out of 10.","What's the boldest thing you've done to get someone's attention?","Who here do you think is the best kisser?"]],
-  dare:[
-   ["Give your flirtiest wink to the player on your left.","Read your last sent text out loud.","Give every player a compliment.","Do a 10-second runway walk.","Talk in a seductive voice until your next turn."],
-   ["Give the player on your right a 20-second shoulder massage.","Let the group scroll your camera roll for 10 seconds.","Text a contact 'thinking of you' and show the reply.","Swap a piece of clothing with another player.","Whisper something flirty to a player of your choice."],
-   ["Kiss a willing player on the cheek.","Do a 15-second dance for a player of your choice.","Remove an accessory or item of clothing.","Let the player on your left choose your next dare.","Sit on a willing player's lap until your next turn."]]
+ boys:{
+  truth:[["What's the most embarrassing film you've cried at?","Which player here would you want in your corner in a fight?"],["What's the worst thing you've done to impress someone?","Who was your first real heartbreak?"],["What's the most daring thing you've done on a date?","What's something you've never admitted to the lads?"]],
+  dare:[["Do 15 push-ups while the group counts.","Let the group pick your nickname for the night."],["Give your best romantic movie speech to another player.","Show the group the last message you sent your crush."],["Do your best strip-tease dance, keeping everything on.","Let the group write your dating profile bio and read it aloud."]]
  }
 };
-const WHEEL = {
- couples:[["Truth"],["Dare"],["Kiss","Kiss your partner anywhere they point to."],["Massage","Give a 1-minute massage of their choice."],["Whisper","Whisper something you've never said out loud."],["Their choice","Your partner sets your next challenge."],["Compliment","Give three compliments, each bolder than the last."],["Slow dance","Slow dance until the song ends."]],
- party:[["Truth"],["Dare"],["Hot seat","Everyone asks you one question. Answer honestly."],["Swap seats","Swap seats with the player you find most attractive."],["Wild card","The group picks your challenge."],["Group truth","Everyone answers: who here is the biggest flirt?"],["Pass left","The player on your left takes this turn."],["Compliment","Give a flirty compliment to every player."]]
+// Wheels: label, then text per heat level (one entry = same at every level)
+const WHEELS = {
+ couple:[
+  ["Kiss",["Kiss your partner's hand, then their cheek.","Kiss your partner anywhere above the shoulders they point to.","Kiss your partner anywhere they point to."]],
+  ["Massage",["Give a 1-minute shoulder massage.","Give a 2-minute massage wherever they choose, above the waist.","Give a 2-minute massage wherever they choose."]],
+  ["Whisper",["Whisper something you love about them.","Whisper what you'd like to do after this game.","Whisper something you've never said out loud."]],
+  ["Compliment",["Give three compliments, each bolder than the last.","Give three compliments about how they look tonight.","Tell your partner three things about them that turn you on."]],
+  ["Slow dance",["Slow dance until the song ends.","Slow dance until the song ends, no space between you.","Slow dance until the song ends, no space and no talking."]],
+  ["Their call",["Your partner picks a sweet dare for you.","Your partner picks a dare for you.","Your partner picks any dare for you. You can still skip."]],
+  ["Eye contact",["Hold eye contact for 30 seconds without laughing.","Hold eye contact for 30 seconds, then kiss.","Hold eye contact while you slowly undo one of their buttons."]],
+  ["Hot seat",["Your partner asks you three questions. Answer honestly.","Your partner asks you three flirty questions.","Your partner asks you three bold questions. Answer honestly."]]
+ ],
+ group:[
+  ["Hot seat",["Everyone asks you one question. Answer honestly.","Everyone asks you one flirty question.","Everyone asks you one bold question. Answer honestly."]],
+  ["Group's call",["The group picks a silly dare for you.","The group picks a dare for you.","The group picks any dare for you. You can still skip."]],
+  ["Pass left",["The player on your left takes this turn."]],
+  ["Swap seats",["Swap seats with any player you like.","Swap seats with the player you'd most like to date.","Swap seats with the player you find most attractive."]],
+  ["Compliment",["Give every player a compliment.","Give every player a flirty compliment.","Tell each player what you find most attractive about them."]],
+  ["Accent",["Talk in an accent the group picks until your next turn."]],
+  ["Never have I",["Say a 'never have I ever'. Anyone who has, stands up.","Say a cheeky 'never have I ever'. Anyone who has, stands up.","Say a spicy 'never have I ever'. Anyone who has, stands up."]],
+  ["Wild card",["Pick any player to answer a truth.","Pick any player to do a dare.","Pick two willing players to do a dare together."]]
+ ]
 };
-const COLORS = ["--wine","--plum","--rose","--brass"];
-const S = {mode:"couples",heat:1,players:[],party:[],turn:0,custom:[],rot:0,spinning:false};
+const GROUPS = {
+  couple:{name:"Couple",moods:["Kissing","Massage","Date night","Anniversary","Getting to know you"]},
+  friends:{name:"Friends",moods:["Kissing","Pre-drinks","Birthday","New people","Deep talk"]},
+  girls:{name:"Girls' night",moods:["Crush talk","Pre-drinks","Hen party","Sleepover","Deep talk"]},
+  boys:{name:"Boys' night",moods:["Dating stories","Pre-drinks","Stag do","Game night","Deep talk"]}
+};
+const PAIRS = {mf:["Him","Her"],ff:["Her","Her"],mm:["Him","Him"],any:["You","Your partner"]};
+const WEDGE = ["--wine","--plum","--rose","--plum"];
+const HEAT = ["Flirty","Steamy","Spicy"];
+const FLAMES = ["●○○","●●○","●●●"];
+
+// ---------- State and helpers ----------
+const S = {group:"couple",pair:"mf",heat:1,players:[],roster:[],turn:0,decks:{},rot:0,spinning:false,todType:null,sheet:null,
+  mood:"",ai:{state:"off",tod:null,wheel:null,note:""}};
 const $ = id => document.getElementById(id);
+const all = sel => document.querySelectorAll(sel);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const show = id => document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const wait = ms => new Promise(r=>setTimeout(r,ms));
+const anim = (el,frames,ms,easing="ease") => reduce ? Promise.resolve() : el.animate(frames,{duration:ms,easing}).finished.catch(()=>{});
+const isCouple = () => S.group==="couple";
+const cur = () => S.players[S.turn%S.players.length];
+const me = () => cur().name;
+const nextUp = () => S.players[(S.turn+1)%S.players.length].name;
 
-$("ageYes").onclick=()=>show("setup");
-$("ageNo").onclick=()=>show("blocked");
-
-document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{
-  S.mode=b.dataset.mode;
-  document.querySelectorAll("[data-mode]").forEach(x=>x.setAttribute("aria-pressed",x===b));
-  $("coupleNames").hidden=S.mode!=="couples"; $("partyNames").hidden=S.mode!=="party";
-});
-document.querySelectorAll("[data-heat]").forEach(b=>b.onclick=()=>{
-  S.heat=+b.dataset.heat;
-  document.querySelectorAll("[data-heat]").forEach(x=>x.setAttribute("aria-pressed",x===b));
-});
-function renderChips(){
-  $("chips").innerHTML="";
-  S.party.forEach((n,i)=>{const c=document.createElement("span");c.className="chip";c.textContent=n;
-    const x=document.createElement("button");x.textContent="×";x.setAttribute("aria-label","Remove "+n);
-    x.onclick=()=>{S.party.splice(i,1);renderChips()};c.append(x);$("chips").append(c)});
+// Matching: does player a fancy player b? Unknown sex matches anyone.
+function into(a,b){
+  if(!a.g||!b.g||a.into==="both") return true;
+  return a.into==="same" ? a.g===b.g : a.g!==b.g;
 }
-function addPlayer(){const n=$("pName").value.trim();if(n){S.party.push(n);$("pName").value="";renderChips()}}
+// Fill {target} with a player both sides would be into; otherwise "a willing player"
+function fillTarget(text){
+  if(!text.includes("{target}")) return text;
+  const c=cur(), fits=S.players.filter(p=>p!==c&&into(c,p)&&into(p,c));
+  const t=fits.length?fits[Math.floor(Math.random()*fits.length)].name:"a willing player";
+  return text.replaceAll("{target}",t);
+}
+const label = t => t==="truth"?"Truth":"Dare";
+const wheelSegs = () => S.ai.wheel&&S.ai.wheel.length ? S.ai.wheel : WHEELS[isCouple()?"couple":"group"];
+const shuffle = a => {a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+function show(id){all(".screen").forEach(s=>s.classList.toggle("on",s.id===id));closePanels(true);window.scrollTo(0,0)}
+
+// ---------- Onboarding ----------
+$("ageYes").onclick=()=>show("group");
+$("ageNo").onclick=()=>show("blocked");
+all("[data-back-group]").forEach(b=>b.onclick=()=>show("group"));
+all("[data-group]").forEach(b=>b.onclick=async()=>{
+  await anim(b,[{transform:"scale(1)"},{transform:"scale(1.04)"},{transform:"scale(1)"}],240);
+  const prev=S.group; S.group=b.dataset.group; S.decks={};
+  if(isCouple()){show("coupleNames");$("p1").focus();return}
+  if(prev!==S.group&&S.group!=="friends") S.roster.forEach(p=>p.g=fixedSex());
+  const mixed=S.group==="friends";
+  $("sexPick").hidden=!mixed; $("prefHint").hidden=!mixed; $("prefs").hidden=true;
+  $("groupTitle").textContent=GROUPS[S.group].name+": who's in?";
+  $("groupErr").textContent=""; renderRoster(); show("groupNames"); $("pName").focus();
+});
+const fixedSex = () => S.group==="girls"?"f":S.group==="boys"?"m":S.sex;
+S.sex="m";
+all("[data-sex]").forEach(b=>b.onclick=()=>{
+  S.sex=b.dataset.sex; all("[data-sex]").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  $("pName").focus();
+});
+all("[data-pair]").forEach(b=>b.onclick=()=>{
+  S.pair=b.dataset.pair;
+  all("[data-pair]").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  $("l1").textContent=PAIRS[S.pair][0]; $("l2").textContent=PAIRS[S.pair][1];
+});
+const PAIR_SEX = {mf:["m","f"],ff:["f","f"],mm:["m","m"],any:[null,null]};
+$("coupleGo").onclick=()=>{
+  let n=[$("p1").value.trim()||PAIRS[S.pair][0],$("p2").value.trim()||PAIRS[S.pair][1]];
+  if(n[0]===n[1]) n=[n[0]+" 1",n[1]+" 2"];
+  S.players=n.map((name,i)=>({name,g:PAIR_SEX[S.pair][i],into:"both"}));
+  goHome();
+};
+
+// Group roster: name + sex, with a hidden "into" setting per player (default: opposite sex)
+const SYM = {m:"he",f:"she"};
+const INTO = {opp:"",same:"into same sex",both:"into both"};
+let editing=null;
+function renderRoster(){
+  const box=$("playerChips"), mixed=S.group==="friends"; box.innerHTML="";
+  S.roster.forEach((p,i)=>{
+    const c=document.createElement("span"),nm=document.createElement("button"),x=document.createElement("button");
+    c.className="chip player";
+    nm.className="nm";
+    nm.innerHTML="<span></span>"+(mixed&&p.g?'<span class="g"></span>':"")+(mixed&&p.g&&INTO[p.into]?"<em></em>":"");
+    nm.querySelector("span").textContent=p.name;
+    if(mixed){nm.setAttribute("aria-label","Edit "+p.name);if(p.g)nm.querySelector(".g").textContent=SYM[p.g]}
+    if(nm.querySelector("em")) nm.querySelector("em").textContent=INTO[p.into];
+    nm.onclick=()=>{if(mixed)openPrefs(p)};
+    x.textContent="×"; x.setAttribute("aria-label","Remove "+p.name);
+    x.onclick=()=>{S.roster.splice(i,1);if(editing===p)$("prefs").hidden=true;renderRoster()};
+    c.append(nm,x); box.append(c);
+  });
+}
+function openPrefs(p){
+  editing=p; $("prefTitle").textContent=p.name;
+  all("#prefSex button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===(p.g||"")));
+  $("prefInto").closest(".row").hidden=!p.g;
+  all("#prefInto button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===p.into));
+  $("prefs").hidden=false;
+}
+all("#prefSex button").forEach(b=>b.onclick=()=>{editing.g=b.dataset.v||null;openPrefs(editing);renderRoster()});
+all("#prefInto button").forEach(b=>b.onclick=()=>{editing.into=b.dataset.v;openPrefs(editing);renderRoster()});
+$("prefDone").onclick=()=>{$("prefs").hidden=true;editing=null};
+function addPlayer(){
+  const n=$("pName").value.trim(); if(!n) return;
+  if(S.roster.length>=12){$("groupErr").textContent="12 players is the maximum.";return}
+  S.roster.push({name:n,g:fixedSex()||null,into:"opp"});
+  $("pName").value=""; $("groupErr").textContent=""; renderRoster(); $("pName").focus();
+}
 $("addP").onclick=addPlayer;
 $("pName").onkeydown=e=>{if(e.key==="Enter")addPlayer()};
-
-$("start").onclick=()=>{
-  S.players = S.mode==="couples" ? [$("p1").value.trim()||"Player one",$("p2").value.trim()||"Player two"] : [...S.party];
-  if(S.players.length<3 && S.mode==="party"){$("setupErr").textContent="Add at least 3 players for party mode.";return}
-  $("setupErr").textContent=""; S.turn=0; show("game"); updateTurn(); drawWheel(); reset();
+$("groupGo").onclick=()=>{
+  if($("pName").value.trim()) addPlayer();
+  if(S.roster.length<2){$("groupErr").textContent="Add at least 2 players to start.";return}
+  S.players=S.roster.map(p=>({...p})); $("prefs").hidden=true; goHome();
 };
-$("toSetup").onclick=()=>show("setup");
-
-document.querySelectorAll("[data-tab]").forEach(t=>t.onclick=()=>{
-  document.querySelectorAll("[data-tab]").forEach(x=>x.setAttribute("aria-selected",x===t));
-  document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("on",p.id===t.dataset.tab));
-});
-
-function updateTurn(){$("who").textContent=S.players[S.turn%S.players.length]}
-function setCard(k,t){$("kind").textContent=k;$("text").textContent=t}
-function reset(){setCard("Ready","Spin the wheel or pick truth or dare.")}
-function draw(type){
-  let pool=[];
-  for(let l=0;l<S.heat;l++) pool=pool.concat(P[S.mode][type][l]);
-  pool=pool.concat(S.custom.filter(c=>c.type===type&&c.mode===S.mode).map(c=>c.text));
-  setCard(type==="truth"?"Truth":"Dare",pool[Math.floor(Math.random()*pool.length)]);
+function goHome(){
+  S.turn=0;
+  const p=S.players.map(x=>x.name);
+  $("names").textContent=p.length<=3?p.join(" & ").replace(/ & (?=.* & )/g,", "):p.slice(0,2).join(", ")+" & "+(p.length-2)+" more";
+  $("groupBadge").textContent=GROUPS[S.group].name;
+  const mc=$("moodChips"); mc.innerHTML="";
+  GROUPS[S.group].moods.forEach(m=>{const c=document.createElement("button");c.className="chip";c.textContent=m;
+    c.onclick=()=>{$("vibe").value=m;markChips();setMood(m)};mc.append(c)});
+  S.rot=0; loadMood(); show("home");
 }
-$("pickT").onclick=()=>draw("truth");
-$("pickD").onclick=()=>draw("dare");
-$("pass").onclick=()=>{setCard("Passed","No problem. Spin again or pick another.")};
-$("done").onclick=()=>{S.turn++;updateTurn();reset()};
+$("editPlayers").onclick=()=>show(isCouple()?"coupleNames":"groupNames");
 
-function drawWheel(){
-  const cv=$("cv"),ctx=cv.getContext("2d"),segs=WHEEL[S.mode],n=segs.length,r=cv.width/2,a=2*Math.PI/n;
+// ---------- Heat ----------
+all("[data-heat]").forEach(b=>b.onclick=()=>setHeat(+b.dataset.heat));
+all("[data-heatpill]").forEach(b=>b.onclick=()=>setHeat(S.heat%3+1));
+let heatTimer;
+function setHeat(h){
+  const changed=h!==S.heat; S.heat=h; S.decks={};
+  all("[data-heat]").forEach(x=>x.setAttribute("aria-pressed",+x.dataset.heat===h));
+  all("[data-heatpill]").forEach(x=>x.innerHTML=HEAT[h-1]+" <i>"+FLAMES[h-1]+"</i>");
+  if(changed&&S.mood){clearTimeout(heatTimer);heatTimer=setTimeout(loadMood,500)}
+}
+
+// ---------- Navigation ----------
+all("[data-go]").forEach(b=>b.onclick=()=>openGame(b.dataset.go));
+all("[data-home]").forEach(b=>b.onclick=()=>show("home"));
+function openGame(g){
+  show(g); updateTurn();
+  if(g==="tod") todChoose();
+  if(g==="wheel"){wheelPending=false;drawWheel()}
+}
+function updateTurn(){all("[data-who]").forEach(x=>x.textContent=me()+"'s turn")}
+function nextTurn(){S.turn++;updateTurn()}
+
+// Deck for the current group and heat: shuffled, no repeats until all have come up
+function next(type){
+  if(!S.decks[type]||!S.decks[type].length){
+    const pool=[];
+    for(let l=0;l<S.heat;l++){
+      if(isCouple()) pool.push(...COUPLE[type][l]);
+      else{pool.push(...GROUP[type][l]); if(EXTRA[S.group]) pool.push(...EXTRA[S.group][type][l])}
+    }
+    for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}
+    S.decks[type]=pool;
+  }
+  return S.decks[type].pop();
+}
+
+// ---------- Truth or Dare ----------
+let busy=false;
+function lock(on){busy=on;["pickT","pickD","pickR","todSkip","todDone"].forEach(id=>$(id).disabled=on)}
+async function flip(change){
+  const c=$("todCard");
+  await anim(c,[{transform:"rotateY(0)"},{transform:"rotateY(90deg)"}],170,"ease-in");
+  c.style.transform=reduce?"":"rotateY(-90deg)";
+  change();
+  await anim(c,[{transform:"rotateY(-90deg)"},{transform:"rotateY(0)"}],240,"ease-out");
+  c.style.transform="";
+}
+function todChoose(){
+  S.todType=null; $("todCard").classList.remove("shuffling");
+  $("todWho").textContent="Round "+(S.turn+1);
+  $("todText").textContent=me()+", truth or dare?";
+  $("todKind").textContent=HEAT[S.heat-1];
+  $("todAct").hidden=true; $("todPick").hidden=false;
+}
+// AI cards for the mood come first; the built-in deck takes over when they run out
+function pull(type){
+  const pool=S.ai.tod&&S.ai.tod[type];
+  if(pool&&pool.length){
+    const text=pool.pop(); if(pool.length<=2) topUp();
+    return {text,ai:S.ai.state==="ready"};
+  }
+  return {text:next(type),ai:false};
+}
+function fillPrompt(type){
+  S.todType=type;
+  const card=pull(type);
+  $("todWho").textContent=me()+", your turn to "+(type==="truth"?"tell the truth":"take the dare");
+  $("todText").textContent=fillTarget(card.text);
+  $("todKind").textContent=(card.ai?"✦ ":"")+label(type);
+  $("todDone").textContent="Done, "+nextUp()+"'s turn";
+  $("todAct").hidden=false; $("todPick").hidden=true;
+}
+async function todReveal(type){
+  if(busy) return; lock(true);
+  await flip(()=>fillPrompt(type));
+  lock(false);
+}
+async function todRandom(){
+  if(busy) return; lock(true);
+  const type=Math.random()<.5?"truth":"dare", other=type==="truth"?"dare":"truth", c=$("todCard");
+  c.classList.add("shuffling");
+  $("todWho").textContent=me()+", the deck is choosing";
+  $("todKind").textContent="Random";
+  const steps=reduce?1:(11+(type==="dare"?1:0));
+  for(let i=0;i<steps;i++){
+    $("todText").textContent=label((steps-1-i)%2===0?type:other)+"…";
+    anim(c,[{transform:"none"},{transform:`translateY(-6px) rotate(${i%2?1.5:-1.5}deg)`},{transform:"none"}],110);
+    await wait(reduce?0:60+i*i*3.2);
+  }
+  await anim($(type==="truth"?"pickT":"pickD"),[{transform:"scale(1)"},{transform:"scale(1.08)"},{transform:"scale(1)"}],320);
+  await wait(reduce?0:250);
+  c.classList.remove("shuffling");
+  await flip(()=>fillPrompt(type));
+  lock(false);
+}
+async function todDone(){
+  if(busy) return; lock(true);
+  const c=$("todCard");
+  await anim(c,[{transform:"none",opacity:1},{transform:"translateX(-115%) rotate(-14deg)",opacity:0}],340,"ease-in");
+  nextTurn(); todChoose();
+  await anim(c,[{transform:"translateY(26px) scale(.94)",opacity:0},{transform:"none",opacity:1}],320,"ease-out");
+  lock(false);
+}
+$("pickT").onclick=()=>todReveal("truth");
+$("pickD").onclick=()=>todReveal("dare");
+$("pickR").onclick=todRandom;
+$("todSkip").onclick=()=>todReveal(S.todType);
+$("todDone").onclick=todDone;
+
+// ---------- Bottom sheets (wheel result, mood) ----------
+let openPanel=null;
+function openSheetEl(el){
+  if(openPanel&&openPanel!==el) closePanels(true);
+  openPanel=el; $("scrim").classList.remove("closing"); el.classList.remove("closing");
+  $("scrim").hidden=false; el.hidden=false;
+}
+function closePanels(instant){
+  const el=openPanel; if(!el) return Promise.resolve();
+  openPanel=null; S.sheet=null;
+  const done=()=>{el.hidden=true;el.classList.remove("closing");if(!openPanel){$("scrim").hidden=true;$("scrim").classList.remove("closing")}afterSheet()};
+  if(instant||reduce){done();return Promise.resolve()}
+  el.classList.add("closing"); $("scrim").classList.add("closing");
+  return new Promise(r=>setTimeout(()=>{done();r()},220));
+}
+function openSheet(kind,text,from){
+  $("sheetWho").textContent=me()+", this one's yours";
+  $("sheetKind").textContent=kind; $("sheetText").textContent=text;
+  $("sheetDone").textContent="Done, "+nextUp()+"'s turn";
+  openSheetEl($("sheet")); S.sheet={from}; $("sheetDone").focus();
+}
+$("scrim").onclick=()=>closePanels();
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closePanels()});
+$("sheetDone").onclick=async()=>{nextTurn();await closePanels()};
+$("sheetSkip").onclick=async()=>{await closePanels();spin(1,.4)};
+
+// ---------- Mood: AI tailors both games ----------
+let aiReq=0;
+function markChips(){const v=$("vibe").value.trim().toLowerCase();all("#moodChips .chip").forEach(c=>c.setAttribute("aria-pressed",c.textContent.toLowerCase()===v))}
+$("vibe").oninput=markChips;
+$("vibe").onkeydown=e=>{if(e.key==="Enter")setMood($("vibe").value)};
+$("moodGo").onclick=()=>setMood($("vibe").value);
+$("moodClear").onclick=()=>{$("vibe").value="";setMood("")};
+all("[data-mood]").forEach(b=>b.onclick=openMood);
+function openMood(){
+  $("vibe").value=S.mood; markChips(); $("moodClear").hidden=!S.mood;
+  $("moodNote").textContent=S.ai.note||"AI writes new truths, dares and wheel wedges around it, at your heat level.";
+  openSheetEl($("moodSheet"));
+  if(matchMedia("(hover:hover)").matches) $("vibe").focus();
+}
+function setMood(m){
+  m=String(m).trim().slice(0,200);
+  const changed=m!==S.mood; S.mood=m;
+  closePanels();
+  if(changed) loadMood();
+}
+async function askAI(game){
+  if(!location.protocol.startsWith("http")) throw new Error("");
+  const r=await fetch("api/ideas",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({game,vibe:S.mood,heat:S.heat,group:S.group,pair:S.pair,players:S.players.length})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error||"");
+  return j;
+}
+// Without the server, pick built-in prompts that mention the mood (e.g. "kissing" finds the kiss dares)
+function localMood(){
+  const stems=(S.mood.toLowerCase().match(/[a-z]{4,}/g)||[]).map(w=>w.replace(/(ing|es|s)$/,""));
+  if(!stems.length) return null;
+  const out={};
+  for(const type of ["truth","dare"]){
+    const pool=[];
+    for(let l=0;l<S.heat;l++){
+      if(isCouple()) pool.push(...COUPLE[type][l]);
+      else{pool.push(...GROUP[type][l]);if(EXTRA[S.group])pool.push(...EXTRA[S.group][type][l])}
+    }
+    out[type]=shuffle(pool.filter(t=>stems.some(st=>t.toLowerCase().includes(st))));
+  }
+  return out.truth.length||out.dare.length?out:null;
+}
+async function loadMood(){
+  const id=++aiReq, hadAiWheel=!!(S.ai.wheel&&S.ai.wheel.length);
+  S.ai={state:S.mood?"loading":"off",tod:null,wheel:null,note:""};
+  renderMood();
+  if(!S.mood){if(hadAiWheel)refreshWheel();return}
+  const [t,w]=await Promise.allSettled([askAI("tod"),askAI("wheel")]);
+  if(id!==aiReq) return;
+  const ok=t.status==="fulfilled";
+  S.ai.tod=ok?{truth:shuffle(t.value.truths),dare:shuffle(t.value.dares)}:localMood();
+  S.ai.wheel=w.status==="fulfilled"?w.value.wedges.map(x=>[x.label,[x.text]]):null;
+  S.ai.state=ok||S.ai.wheel?"ready":"local";
+  const why=(!ok&&t.reason&&t.reason.message)||"";
+  S.ai.note=S.ai.state==="ready"?"":(why?why+" ":"")+(S.ai.tod?"Using built-in cards that match the mood.":"Using the built-in deck for now.");
+  renderMood();
+  if(S.ai.wheel||hadAiWheel) refreshWheel();
+}
+let topping=false;
+async function topUp(){
+  if(S.ai.state!=="ready"||topping) return;
+  topping=true; const id=aiReq;
+  try{const j=await askAI("tod"); if(id===aiReq&&S.ai.tod){S.ai.tod.truth.unshift(...shuffle(j.truths));S.ai.tod.dare.unshift(...shuffle(j.dares))}}catch(e){}
+  topping=false;
+}
+function renderMood(){
+  const st=S.ai.state, m=S.mood;
+  const tag=st==="loading"?"writing…":st==="ready"?"AI picks":"built-in";
+  all("[data-moodtext]").forEach(x=>{x.innerHTML="";
+    if(!m){x.append("Set a mood ");const e=document.createElement("em");e.textContent="for AI picks";x.append(e);return}
+    x.append(m+" ");const e=document.createElement("em");e.textContent="· "+tag;x.append(e)});
+  all("[data-moodgo]").forEach(x=>x.textContent=m?"Change":"Set");
+  all("[data-mood]").forEach(x=>{x.classList.toggle("set",!!m);x.classList.toggle("loading",st==="loading")});
+  all("[data-moodtitle]").forEach(x=>x.textContent=m?"Mood: "+m:"Set the mood");
+  all("[data-moodsub]").forEach(x=>x.textContent=!m?'AI tailors both games to it, like "kissing".':
+    st==="loading"?"AI is writing cards and wedges…":st==="ready"?"Both games are tailored to it.":"AI isn't reachable, so the built-in deck is used.");
+}
+
+// ---------- Wheel ----------
+const TAU=2*Math.PI, cv=$("cv"), wheelEl=$("wheelEl");
+let shown=null;   // the wedges currently drawn on the disc
+function setRot(r){S.rot=r;cv.style.transform="rotate("+r+"rad)"}
+const under=(r,n)=>Math.floor(((((-Math.PI/2-r)%TAU)+TAU)%TAU)/(TAU/n))%n;
+function drawWheel(hi=-1){
+  const segs=shown=wheelSegs(),ctx=cv.getContext("2d"),n=segs.length,R=cv.width/2,a=TAU/n,inner=R-34;
+  const brass=css("--brass"),cream="#FFF5F3";
   ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.save();ctx.translate(r,r);ctx.rotate(S.rot);
+  ctx.save();ctx.translate(R,R);
+  ctx.beginPath();ctx.arc(0,0,R-2,0,TAU);ctx.fillStyle=brass;ctx.fill();
   segs.forEach((s,i)=>{
-    ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,r-8,i*a,(i+1)*a);ctx.closePath();
-    ctx.fillStyle=css(COLORS[i%4]);ctx.fill();
-    ctx.strokeStyle=css("--bg");ctx.lineWidth=6;ctx.stroke();
-    ctx.save();ctx.rotate(i*a+a/2);ctx.textAlign="right";ctx.fillStyle="#FFF5F3";
-    ctx.font='italic 46px "Instrument Serif", Georgia, serif';ctx.fillText(s[0],r-40,14);ctx.restore();
+    ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,inner,i*a,(i+1)*a);ctx.closePath();
+    ctx.fillStyle=css(WEDGE[i%WEDGE.length]);ctx.fill();
+    if(i===hi){ctx.fillStyle="rgba(255,236,200,.28)";ctx.fill()}
+    ctx.strokeStyle=brass;ctx.lineWidth=3;ctx.stroke();
+    // Label: shrink long AI labels to fit between the hub and the rim
+    ctx.save();ctx.rotate(i*a+a/2);ctx.textAlign="right";ctx.textBaseline="middle";ctx.fillStyle=cream;
+    let size=44;const room=inner-150;
+    do{ctx.font='italic '+size+'px "Instrument Serif", Georgia, serif'}while(ctx.measureText(s[0]).width>room&&--size>26);
+    let txt=s[0];while(ctx.measureText(txt).width>room&&txt.length>3)txt=txt.slice(0,-2)+"…";
+    ctx.fillText(txt,inner-24,0);ctx.restore();
   });
-  ctx.beginPath();ctx.arc(0,0,46,0,2*Math.PI);ctx.fillStyle=css("--surface");ctx.fill();
+  if(hi>=0){ctx.beginPath();ctx.arc(0,0,inner-2,hi*a,(hi+1)*a);ctx.lineTo(0,0);ctx.closePath();ctx.strokeStyle=cream;ctx.lineWidth=6;ctx.stroke()}
+  for(let i=0;i<n*2;i++){const t=i*a/2;ctx.beginPath();ctx.arc(Math.cos(t)*(R-18),Math.sin(t)*(R-18),6,0,TAU);
+    ctx.fillStyle=cream;ctx.globalAlpha=i%2?.55:1;ctx.fill();ctx.globalAlpha=1}
   ctx.restore();
+  setRot(S.rot);
 }
-$("spin").onclick=()=>{
-  if(S.spinning)return; S.spinning=true;
-  const segs=WHEEL[S.mode],n=segs.length,a=2*Math.PI/n;
-  const target=S.rot+(reduce?0:8*Math.PI)+Math.random()*2*Math.PI;
-  const start=S.rot,dur=reduce?1:3600,t0=performance.now();
-  (function step(t){
-    const p=Math.min((t-t0)/dur,1),e=1-Math.pow(1-p,4);
-    S.rot=start+(target-start)*e;drawWheel();
-    if(p<1)return requestAnimationFrame(step);
-    S.spinning=false;
-    const ang=((-Math.PI/2-S.rot)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
-    const seg=segs[Math.floor(ang/a)];
-    if(seg[0]==="Truth")draw("truth");else if(seg[0]==="Dare")draw("dare");else setCard(seg[0],seg[1]);
-  })(t0);
-};
+// New wedges (a mood was set or cleared): shrink the old disc away and grow the new one in
+let wheelPending=false;
+async function refreshWheel(){
+  if(!$("wheel").classList.contains("on")) return;
+  if(S.spinning||S.sheet){wheelPending=true;return}
+  wheelPending=false;
+  await anim(cv,[{transform:"rotate("+S.rot+"rad)",opacity:1},{transform:"rotate("+(S.rot-1)+"rad) scale(.6)",opacity:0}],260,"ease-in");
+  S.rot=0; cv.style.opacity=0; drawWheel(); cv.style.opacity="";
+  await anim(cv,[{transform:"rotate(1.2rad) scale(.6)",opacity:0},{transform:"rotate(0rad)",opacity:1}],520,"cubic-bezier(.2,.9,.3,1.15)");
+}
+function afterSheet(){
+  if(!$("wheel").classList.contains("on")||S.spinning) return;
+  if(wheelPending) refreshWheel(); else drawWheel();
+}
+function tween(from,to,ms,ease,each){
+  return new Promise(res=>{const t0=performance.now();
+    requestAnimationFrame(function f(t){const p=Math.min((t-t0)/ms,1);setRot(from+(to-from)*ease(p));each&&each(p);p<1?requestAnimationFrame(f):res()})});
+}
+let lastTick=0;
+function tick(dir,speed){
+  const t=performance.now(); if(t-lastTick<45) return; lastTick=t;
+  anim($("pointer"),[{transform:"rotate(0)"},{transform:"rotate("+(dir>0?-1:1)*(10+18*speed)+"deg)"},{transform:"rotate(0)"}],140,"ease-out");
+  if(speed<.45&&navigator.vibrate) try{navigator.vibrate(4)}catch(e){}
+}
+// dir: 1 clockwise, -1 anticlockwise. power 0-1 sets how many turns and how long.
+async function spin(dir=1,power=.6,windup=true){
+  if(S.spinning) return; S.spinning=true; $("spin").disabled=true;
+  if(!shown) drawWheel();
+  const segs=shown,n=segs.length,a=TAU/n;
+  const win=Math.floor(Math.random()*n), f=.18+Math.random()*.64;   // land well inside the wedge, never on a line
+  if(windup&&!reduce) await tween(S.rot,S.rot-dir*.22,200,p=>1-(1-p)*(1-p));
+  const start=S.rot, base=-Math.PI/2-(win+f)*a, turns=reduce?0:Math.round(4+power*4);
+  const dist=dir>0?((base-start)%TAU+TAU)%TAU+turns*TAU:-((((start-base)%TAU)+TAU)%TAU+turns*TAU);
+  const dur=reduce?1:3800+power*1600;
+  let last=under(start,n);
+  // Quintic ease-out: fast start, long gentle coast into the result
+  await tween(start,start+dist,dur,p=>1-Math.pow(1-p,5),p=>{const i=under(S.rot,n);if(i!==last){last=i;tick(dir,Math.pow(1-p,4))}});
+  S.spinning=false;
+  drawWheel(win);
+  await anim(cv,[{transform:"rotate("+S.rot+"rad) scale(1)"},{transform:"rotate("+S.rot+"rad) scale(1.035)"},{transform:"rotate("+S.rot+"rad) scale(1)"}],380,"ease-out");
+  await wait(reduce?0:180);
+  const seg=segs[win], aiWedge=segs===S.ai.wheel;
+  openSheet((aiWedge?"✦ ":"")+seg[0],fillTarget(seg[1][Math.min(S.heat,seg[1].length)-1]),"wheel");
+  $("spin").disabled=false;
+}
+$("spin").onclick=()=>spin(1,.5+Math.random()*.3);
 
-function renderCustom(){
-  const l=$("cList");l.innerHTML="";
-  const mine=S.custom.filter(c=>c.mode===S.mode);
-  $("cEmpty").hidden=mine.length>0;
-  mine.forEach(c=>{const li=document.createElement("li");const sp=document.createElement("span");sp.textContent=c.text;
-    const sm=document.createElement("small");sm.textContent=c.type==="truth"?"Truth":"Dare";li.append(sp,sm);l.append(li)});
+// Flick to spin: the disc follows your finger, and a fast release sets it spinning that way
+let drag=null;
+const angleAt=e=>{const r=wheelEl.getBoundingClientRect();return Math.atan2(e.clientY-(r.top+r.height/2),e.clientX-(r.left+r.width/2))};
+wheelEl.addEventListener("pointerdown",e=>{
+  if(S.spinning||e.target.closest("#spin")) return;
+  drag={prev:angleAt(e),samples:[[performance.now(),S.rot]]};
+  wheelEl.setPointerCapture(e.pointerId); wheelEl.classList.add("dragging");
+});
+wheelEl.addEventListener("pointermove",e=>{
+  if(!drag) return;
+  const a=angleAt(e); let d=a-drag.prev; d=(d+3*Math.PI)%TAU-Math.PI; drag.prev=a;
+  setRot(S.rot+d);
+  const t=performance.now(); drag.samples.push([t,S.rot]); while(drag.samples.length>2&&t-drag.samples[0][0]>90) drag.samples.shift();
+});
+function endDrag(){
+  if(!drag) return; const sm=drag.samples; drag=null; wheelEl.classList.remove("dragging");
+  const [t0,r0]=sm[0],[t1,r1]=sm[sm.length-1], v=(r1-r0)/Math.max(t1-t0,1);   // radians per ms
+  if(performance.now()-t1<80&&Math.abs(v)>.003) spin(Math.sign(v),Math.min(Math.abs(v)/.02,1),false);
 }
-$("cAdd").onclick=()=>{const t=$("cText").value.trim();if(!t)return;
-  S.custom.push({text:t,type:$("cType").value,mode:S.mode});$("cText").value="";renderCustom()};
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change",drawWheel);
-document.fonts && document.fonts.ready.then(()=>{if($("game").classList.contains("on"))drawWheel()});
+wheelEl.addEventListener("pointerup",endDrag);
+wheelEl.addEventListener("pointercancel",endDrag);
+
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if($("wheel").classList.contains("on"))drawWheel()});
+document.fonts&&document.fonts.ready.then(()=>{if($("wheel").classList.contains("on"))drawWheel()});
+setHeat(1); renderMood();
 </script>
 </body>
 </html>
