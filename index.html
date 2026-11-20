@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#7A1F3D">
+<title>After Dark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Figtree:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F7E6E4; --surface:#FFF5F3; --ink:#3B0D1C; --muted:#8A5A66;
+  --wine:#7A1F3D; --rose:#D9667B; --brass:#B8892B; --plum:#4E1D3A;
+  --on-accent:#FFF5F3; --line:#E7C9C9;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --bg:#1F0A14; --surface:#2E1220; --ink:#F7E1E4; --muted:#C29AA6;
+    --wine:#A33256; --rose:#E07A8C; --brass:#D9AE4B; --plum:#6B2A50;
+    --on-accent:#FFF5F3; --line:#4A2235;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Figtree,system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;
+  padding:env(safe-area-inset-top) 18px calc(env(safe-area-inset-bottom) + 24px);line-height:1.5}
+h1,h2,.serif{font-family:"Instrument Serif",Georgia,serif;font-weight:400}
+h1{font-size:3.4rem;line-height:1;font-style:italic;color:var(--wine)}
+h2{font-size:2rem;line-height:1.1;margin-bottom:12px}
+.screen{display:none;max-width:480px;margin:0 auto;padding-top:28px}
+.screen.on{display:block}
+p.lead{color:var(--muted);margin:10px 0 24px}
+button{font:inherit;cursor:pointer;border:none;border-radius:999px;padding:14px 22px;font-weight:600}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+.primary{background:var(--wine);color:var(--on-accent);width:100%;font-size:1.05rem}
+.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.seg{display:flex;background:var(--surface);border-radius:999px;padding:4px;margin-bottom:20px}
+.seg button{flex:1;background:transparent;color:var(--muted);padding:10px}
+.seg button[aria-pressed=true]{background:var(--wine);color:var(--on-accent)}
+label{display:block;font-weight:600;margin:16px 0 8px}
+input,select{font:inherit;width:100%;padding:12px 16px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{background:var(--surface);border:1.5px solid var(--line);padding:6px 12px;border-radius:999px;font-size:.9rem}
+.chip button{background:none;padding:0 0 0 6px;color:var(--muted)}
+.heat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.heat button{background:var(--surface);color:var(--ink);border:1.5px solid var(--line);border-radius:16px;padding:12px 6px}
+.heat button[aria-pressed=true]{border-color:var(--rose);background:var(--rose);color:var(--on-accent)}
+.turn{text-align:center;color:var(--muted);margin-bottom:6px}
+.turn strong{color:var(--ink);font-size:1.2rem}
+.wheel-wrap{position:relative;width:min(88vw,380px);aspect-ratio:1;margin:10px auto 18px}
+canvas{width:100%;height:100%}
+.pointer{position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:0;height:0;
+  border-left:14px solid transparent;border-right:14px solid transparent;border-top:26px solid var(--brass);filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}
+.card{background:var(--surface);border-radius:28px 28px 28px 6px;padding:26px 22px;min-height:150px;margin:16px 0;border:1.5px solid var(--line)}
+.card .kind{color:var(--rose);font-weight:800;font-size:.85rem}
+.card .text{font-family:"Instrument Serif",Georgia,serif;font-size:1.75rem;line-height:1.2;margin-top:6px}
+.tabs{display:flex;gap:6px;margin:18px 0 4px}
+.tabs button{flex:1;background:transparent;color:var(--muted);border-bottom:2px solid transparent;border-radius:0;padding:10px 4px}
+.tabs button[aria-selected=true]{color:var(--ink);border-color:var(--wine)}
+.panel{display:none}.panel.on{display:block}
+.td{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.td .t{background:var(--plum);color:var(--on-accent);padding:22px;font-size:1.2rem}
+.td .d{background:var(--wine);color:var(--on-accent);padding:22px;font-size:1.2rem}
+.note{font-size:.85rem;color:var(--muted);text-align:center;margin-top:18px}
+.list li{list-style:none;padding:10px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
+.list small{color:var(--rose);font-weight:800}
+.back{background:none;color:var(--muted);padding:6px 0}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- Age gate -->
+<section class="screen on" id="gate">
+  <h1>After Dark</h1>
+  <p class="lead">Flirty games for couples and parties. This app contains adult content.</p>
+  <h2>Are you 18 or older?</h2>
+  <div class="row" style="margin-top:16px">
+    <button class="primary" id="ageYes">I'm 18+, enter</button>
+    <button class="ghost" style="width:100%" id="ageNo">I'm under 18</button>
+  </div>
+  <p class="note">Play only with willing adults. Anyone can pass at any time.</p>
+</section>
+
+<!-- Under 18 -->
+<section class="screen" id="blocked">
+  <h2>This app is for adults only.</h2>
+  <p class="lead">Come back when you're 18.</p>
+</section>
+
+<!-- Setup -->
+<section class="screen" id="setup">
+  <h1>Who's playing?</h1>
+  <p class="lead">Pick a mode, add names and set the heat.</p>
+  <div class="seg" role="group" aria-label="Mode">
+    <button data-mode="couples" aria-pressed="true">Couples</button>
+    <button data-mode="party" aria-pressed="false">Party</button>
+  </div>
+  <div id="coupleNames">
+    <label for="p1">Player one</label><input id="p1" placeholder="Name">
+    <label for="p2">Player two</label><input id="p2" placeholder="Name">
+  </div>
+  <div id="partyNames" hidden>
+    <label for="pName">Add players</label>
+    <div class="row" style="flex-wrap:nowrap">
+      <input id="pName" placeholder="Name">
+      <button class="ghost" id="addP">Add</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+  <label>Heat level</label>
+  <div class="heat" role="group" aria-label="Heat level">
+    <button data-heat="1" aria-pressed="true">Flirty</button>
+    <button data-heat="2" aria-pressed="false">Steamy</button>
+    <button data-heat="3" aria-pressed="false">Spicy</button>
+  </div>
+  <p id="setupErr" class="note" role="alert"></p>
+  <button class="primary" id="start" style="margin-top:14px">Start game</button>
+</section>
+
+<!-- Game -->
+<section class="screen" id="game">
+  <button class="back" id="toSetup">‹ Players and settings</button>
+  <p class="turn">Your turn, <strong id="who"></strong></p>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="wheel">Spin the wheel</button>
+    <button role="tab" aria-selected="false" data-tab="tod">Truth or dare</button>
+    <button role="tab" aria-selected="false" data-tab="mine">My prompts</button>
+  </div>
+
+  <div class="panel on" id="wheel">
+    <div class="wheel-wrap"><div class="pointer"></div><canvas id="cv" width="760" height="760" aria-label="Game wheel"></canvas></div>
+    <button class="primary" id="spin">Spin</button>
+  </div>
+
+  <div class="panel" id="tod">
+    <div class="td" style="margin-top:16px">
+      <button class="t" id="pickT">Truth</button>
+      <button class="d" id="pickD">Dare</button>
+    </div>
+  </div>
+
+  <div class="panel" id="mine">
+    <label for="cText">Write your own</label>
+    <input id="cText" placeholder="e.g. Describe our perfect night in">
+    <div class="row" style="margin-top:10px">
+      <select id="cType" style="flex:1"><option value="truth">Truth</option><option value="dare">Dare</option></select>
+      <button class="ghost" id="cAdd">Add prompt</button>
+    </div>
+    <ul class="list" id="cList" style="margin-top:14px"></ul>
+    <p class="note" id="cEmpty">No custom prompts yet. Added ones mix into the deck for this session.</p>
+  </div>
+
+  <div class="card" id="card" aria-live="polite">
+    <div class="kind" id="kind">Ready</div>
+    <div class="text" id="text">Spin the wheel or pick truth or dare.</div>
+  </div>
+  <div class="row">
+    <button class="ghost" style="flex:1" id="pass">Pass</button>
+    <button class="primary" style="flex:2" id="done">Done, next player</button>
+  </div>
+  <p class="note">Anyone can pass, no questions asked.</p>
+</section>
+
+<script>
+const P = {
+ couples:{
+  truth:[
+   ["What was your first impression of me?","What's one thing I do that instantly makes you smile?","When did you first want to kiss me?","Which outfit of mine is your favourite?","What's the most romantic thing you've imagined us doing?"],
+   ["Where's the most daring place you've wanted to kiss me?","What's a fantasy date you've never told me about?","What's something I do that drives you wild?","When did you find me most attractive?","What's a secret wish for our next night in?"],
+   ["What's one thing you've wanted to try with me but never asked?","Where do you most love being kissed?","What should I wear next date night?","What's the boldest text you'd send me right now?","What's your favourite memory of us alone?"]],
+  dare:[
+   ["Give your partner a 30-second shoulder massage.","Whisper three things you love about them.","Slow dance together to the next song.","Kiss their hand like royalty.","Hold eye contact for 30 seconds without laughing."],
+   ["Kiss your partner's neck slowly.","Sit on your partner's lap until your next turn.","Describe your next kiss before you give it.","Give a 1-minute massage wherever they choose, above the waist.","Blindfold your partner and kiss them somewhere unexpected."],
+   ["Remove one item of clothing.","Let your partner choose where you kiss them.","Seduce your partner using only your voice for 30 seconds.","Give your partner a 20-second kiss.","Trade one item of clothing with your partner."]]
+ },
+ party:{
+  truth:[
+   ["Who here would you most want to go on a date with?","What's the most embarrassing text you've sent a crush?","What's the worst pickup line that worked on you?","Who was your first celebrity crush?","What's your biggest turn-off?"],
+   ["Who in this room has the best smile?","What's the most daring thing you've done on a night out?","Ever had a crush on a friend's partner? No names needed.","What's the wildest place you've been kissed?","What's a secret you've never told this group?"],
+   ["Who here would you kiss if you had to pick right now?","What's a fantasy you'd admit out loud?","Rate your last kiss out of 10.","What's the boldest thing you've done to get someone's attention?","Who here do you think is the best kisser?"]],
+  dare:[
+   ["Give your flirtiest wink to the player on your left.","Read your last sent text out loud.","Give every player a compliment.","Do a 10-second runway walk.","Talk in a seductive voice until your next turn."],
+   ["Give the player on your right a 20-second shoulder massage.","Let the group scroll your camera roll for 10 seconds.","Text a contact 'thinking of you' and show the reply.","Swap a piece of clothing with another player.","Whisper something flirty to a player of your choice."],
+   ["Kiss a willing player on the cheek.","Do a 15-second dance for a player of your choice.","Remove an accessory or item of clothing.","Let the player on your left choose your next dare.","Sit on a willing player's lap until your next turn."]]
+ }
+};
+const WHEEL = {
+ couples:[["Truth"],["Dare"],["Kiss","Kiss your partner anywhere they point to."],["Massage","Give a 1-minute massage of their choice."],["Whisper","Whisper something you've never said out loud."],["Their choice","Your partner sets your next challenge."],["Compliment","Give three compliments, each bolder than the last."],["Slow dance","Slow dance until the song ends."]],
+ party:[["Truth"],["Dare"],["Hot seat","Everyone asks you one question. Answer honestly."],["Swap seats","Swap seats with the player you find most attractive."],["Wild card","The group picks your challenge."],["Group truth","Everyone answers: who here is the biggest flirt?"],["Pass left","The player on your left takes this turn."],["Compliment","Give a flirty compliment to every player."]]
+};
+const COLORS = ["--wine","--plum","--rose","--brass"];
+const S = {mode:"couples",heat:1,players:[],party:[],turn:0,custom:[],rot:0,spinning:false};
+const $ = id => document.getElementById(id);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const show = id => document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+$("ageYes").onclick=()=>show("setup");
+$("ageNo").onclick=()=>show("blocked");
+
+document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{
+  S.mode=b.dataset.mode;
+  document.querySelectorAll("[data-mode]").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  $("coupleNames").hidden=S.mode!=="couples"; $("partyNames").hidden=S.mode!=="party";
+});
+document.querySelectorAll("[data-heat]").forEach(b=>b.onclick=()=>{
+  S.heat=+b.dataset.heat;
+  document.querySelectorAll("[data-heat]").forEach(x=>x.setAttribute("aria-pressed",x===b));
+});
+function renderChips(){
+  $("chips").innerHTML="";
+  S.party.forEach((n,i)=>{const c=document.createElement("span");c.className="chip";c.textContent=n;
+    const x=document.createElement("button");x.textContent="×";x.setAttribute("aria-label","Remove "+n);
+    x.onclick=()=>{S.party.splice(i,1);renderChips()};c.append(x);$("chips").append(c)});
+}
+function addPlayer(){const n=$("pName").value.trim();if(n){S.party.push(n);$("pName").value="";renderChips()}}
+$("addP").onclick=addPlayer;
+$("pName").onkeydown=e=>{if(e.key==="Enter")addPlayer()};
+
+$("start").onclick=()=>{
+  S.players = S.mode==="couples" ? [$("p1").value.trim()||"Player one",$("p2").value.trim()||"Player two"] : [...S.party];
+  if(S.players.length<3 && S.mode==="party"){$("setupErr").textContent="Add at least 3 players for party mode.";return}
+  $("setupErr").textContent=""; S.turn=0; show("game"); updateTurn(); drawWheel(); reset();
+};
+$("toSetup").onclick=()=>show("setup");
+
+document.querySelectorAll("[data-tab]").forEach(t=>t.onclick=()=>{
+  document.querySelectorAll("[data-tab]").forEach(x=>x.setAttribute("aria-selected",x===t));
+  document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("on",p.id===t.dataset.tab));
+});
+
+function updateTurn(){$("who").textContent=S.players[S.turn%S.players.length]}
+function setCard(k,t){$("kind").textContent=k;$("text").textContent=t}
+function reset(){setCard("Ready","Spin the wheel or pick truth or dare.")}
+function draw(type){
+  let pool=[];
+  for(let l=0;l<S.heat;l++) pool=pool.concat(P[S.mode][type][l]);
+  pool=pool.concat(S.custom.filter(c=>c.type===type&&c.mode===S.mode).map(c=>c.text));
+  setCard(type==="truth"?"Truth":"Dare",pool[Math.floor(Math.random()*pool.length)]);
+}
+$("pickT").onclick=()=>draw("truth");
+$("pickD").onclick=()=>draw("dare");
+$("pass").onclick=()=>{setCard("Passed","No problem. Spin again or pick another.")};
+$("done").onclick=()=>{S.turn++;updateTurn();reset()};
+
+function drawWheel(){
+  const cv=$("cv"),ctx=cv.getContext("2d"),segs=WHEEL[S.mode],n=segs.length,r=cv.width/2,a=2*Math.PI/n;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.save();ctx.translate(r,r);ctx.rotate(S.rot);
+  segs.forEach((s,i)=>{
+    ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,r-8,i*a,(i+1)*a);ctx.closePath();
+    ctx.fillStyle=css(COLORS[i%4]);ctx.fill();
+    ctx.strokeStyle=css("--bg");ctx.lineWidth=6;ctx.stroke();
+    ctx.save();ctx.rotate(i*a+a/2);ctx.textAlign="right";ctx.fillStyle="#FFF5F3";
+    ctx.font='italic 46px "Instrument Serif", Georgia, serif';ctx.fillText(s[0],r-40,14);ctx.restore();
+  });
+  ctx.beginPath();ctx.arc(0,0,46,0,2*Math.PI);ctx.fillStyle=css("--surface");ctx.fill();
+  ctx.restore();
+}
+$("spin").onclick=()=>{
+  if(S.spinning)return; S.spinning=true;
+  const segs=WHEEL[S.mode],n=segs.length,a=2*Math.PI/n;
+  const target=S.rot+(reduce?0:8*Math.PI)+Math.random()*2*Math.PI;
+  const start=S.rot,dur=reduce?1:3600,t0=performance.now();
+  (function step(t){
+    const p=Math.min((t-t0)/dur,1),e=1-Math.pow(1-p,4);
+    S.rot=start+(target-start)*e;drawWheel();
+    if(p<1)return requestAnimationFrame(step);
+    S.spinning=false;
+    const ang=((-Math.PI/2-S.rot)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+    const seg=segs[Math.floor(ang/a)];
+    if(seg[0]==="Truth")draw("truth");else if(seg[0]==="Dare")draw("dare");else setCard(seg[0],seg[1]);
+  })(t0);
+};
+
+function renderCustom(){
+  const l=$("cList");l.innerHTML="";
+  const mine=S.custom.filter(c=>c.mode===S.mode);
+  $("cEmpty").hidden=mine.length>0;
+  mine.forEach(c=>{const li=document.createElement("li");const sp=document.createElement("span");sp.textContent=c.text;
+    const sm=document.createElement("small");sm.textContent=c.type==="truth"?"Truth":"Dare";li.append(sp,sm);l.append(li)});
+}
+$("cAdd").onclick=()=>{const t=$("cText").value.trim();if(!t)return;
+  S.custom.push({text:t,type:$("cType").value,mode:S.mode});$("cText").value="";renderCustom()};
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",drawWheel);
+document.fonts && document.fonts.ready.then(()=>{if($("game").classList.contains("on"))drawWheel()});
+</script>
+</body>
+</html>
