@@ -1,4 +1,4 @@
-// After Dark server: serves the game and writes mood-based prompts and wheel wedges with Claude.
+// Midnight Vibes server: serves the game and writes mood-based prompts and wheel wedges with Claude.
 // The API key stays here on the server and is never sent to the browser.
 import http from "node:http";
 import { readFile } from "node:fs/promises";
@@ -27,7 +27,7 @@ const GROUPS = {
   boys: (n) => `a boys' night: ${n} men who are friends`,
 };
 
-const SYSTEM = `You write prompts for After Dark, an 18+ party game for consenting adults: either a couple playing in private, or a group of friends.
+const SYSTEM = `You write prompts for Midnight Vibes, an 18+ party game for consenting adults: either a couple playing in private, or a group of friends.
 
 The players pick a mood, which can be an occasion ("anniversary", "pre-drinks") or an activity they want more of ("kissing", "massage"). Lean every prompt into that mood: for "kissing", most prompts should involve kisses in different, creative ways.
 
@@ -185,4 +185,4 @@ const server = http.createServer(async (req, res) => {
   res.end("Not found");
 });
 
-server.listen(PORT, () => console.log(`After Dark running at http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`Midnight Vibes running at http://localhost:${PORT}`));

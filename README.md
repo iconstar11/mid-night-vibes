@@ -1,4 +1,6 @@
-# After Dark
+# Midnight Vibes
+
+**https://midnightvibes.online**
 
 18+ party game for couples and groups: Truth or Dare and Spin the Wheel at three heat levels, both tailored by AI to the mood you set.
 
