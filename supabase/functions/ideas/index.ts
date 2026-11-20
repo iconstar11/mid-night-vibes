@@ -12,7 +12,13 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { GROUPS, HEAT, PAIRS, SYSTEM, TASKS, type TaskName } from "../_shared/prompt.ts";
 
-const DAILY_LIMIT = Number(Deno.env.get("AI_DAILY_LIMIT") ?? 30); // cost guard per user per day
+// Daily AI limits per plan live in the plan_limits table (guest / free / premium)
+const CALLS_PER_MOOD = 4; // hidden cost guard: a mood makes ~2-3 calls (cards, wheel, top-ups)
+const LIMIT_MESSAGE: Record<string, string> = {
+  guest: "That's today's free AI moods. Create a free account for more.",
+  free: "That's today's AI moods on the free plan. Premium gets many more.",
+  premium: "That's today's AI moods. They're back tomorrow.",
+};
 const CACHE_VARIANTS = 3; // after this many results for the same mood, serve from cache
 
 const cors = {
@@ -49,12 +55,13 @@ Deno.serve(async (req) => {
   if (!uid) return send(401, { error: "Sign in to use AI ideas." });
 
   // Same validation as legacy/server.js
-  let task: TaskName = "tod", vibe = "", heat = 1, pair = "any", who = PAIRS.any, audience = "any";
+  let task: TaskName = "tod", vibe = "", heat = 1, pair = "any", who = PAIRS.any, audience = "any", newMood = false;
   try {
     const raw = await req.text();
     if (raw.length > 2000) throw new Error("too large");
     const body = JSON.parse(raw);
     task = body.game === "wheel" ? "wheel" : "tod";
+    newMood = body.newMood === true; // the app sets this on the first call for a mood
     vibe = String(body.vibe ?? "").trim().slice(0, 200);
     heat = [1, 2, 3].includes(body.heat) ? body.heat : 1;
     pair = Object.hasOwn(PAIRS, body.pair) ? body.pair : "any";
@@ -74,11 +81,18 @@ Deno.serve(async (req) => {
     return send(200, pick.payload);
   }
 
-  // Cost guard
-  const { data: used, error: usageErr } = await admin.rpc("bump_ai_usage", { uid });
+  // Daily limit for this user's plan (counted in moods; raw calls are capped too)
+  const [{ data: plan }, { data: usage, error: usageErr }] = await Promise.all([
+    admin.rpc("current_plan", { uid }),
+    admin.rpc("bump_ai_usage", { uid, new_mood: newMood }),
+  ]);
   if (usageErr) console.error("usage:", usageErr.message);
-  if (typeof used === "number" && used > DAILY_LIMIT) {
-    return send(429, { error: "That's today's AI limit. The built-in cards still work, and AI is back tomorrow." });
+  const tier = typeof plan === "string" ? plan : "guest";
+  const { data: lim } = await admin.from("plan_limits").select("ai_moods_per_day").eq("plan", tier).maybeSingle();
+  const limit = lim?.ai_moods_per_day ?? 3;
+  const row = Array.isArray(usage) ? usage[0] : usage;
+  if (row && (row.moods > limit || row.calls > Math.max(limit, 1) * CALLS_PER_MOOD)) {
+    return send(429, { error: LIMIT_MESSAGE[tier] ?? LIMIT_MESSAGE.guest, limit: true, plan: tier });
   }
 
   const t = TASKS[task];
@@ -110,6 +124,7 @@ Deno.serve(async (req) => {
       if (!last.retry) break;
     }
   }
+  if (newMood) await admin.rpc("refund_ai_mood", { uid }).then(({ error }) => { if (error) console.error("refund:", error.message); });
   return send(last.status, { error: last.userMessage });
 });
 

@@ -10,9 +10,10 @@ import { MoodSheet, Spark } from "@/components/Mood";
 import { LiveBadge } from "@/components/LiveBadge";
 import { ShareRoom } from "@/components/ShareRoom";
 import { Sheet } from "@/components/Sheet";
-import { Btn, Fine, Label, Press, RoundBtn, Screen } from "@/components/ui";
+import { Btn, Fine, Label, Press, Screen } from "@/components/ui";
 import { GROUPS } from "@/game/content";
 import type { Heat } from "@/game/types";
+import { useAuth } from "@/lib/auth";
 import { useInstall } from "@/lib/install";
 import { host } from "@/lib/room";
 import { useGame } from "@/state/store";
@@ -39,6 +40,8 @@ function Games() {
   const [guide, setGuide] = useState<null | "ios-guide" | "safari-needed">(null);
   const { canInstall, install } = useInstall();
   const [shareOpen, setShareOpen] = useState(false);
+  const email = useAuth((a) => a.email);
+  const name = useAuth((a) => a.name);
   useFocusEffect(useCallback(() => { host.screen("home"); }, []));
 
   return (
@@ -69,12 +72,25 @@ function Games() {
                 <Path d="M8.3 10.8 15.7 6.2M8.3 13.2l7.4 4.6" />
               </Svg>
             </Press>
-            <RoundBtn label="✎" a11y="Change players" onPress={() => router.push(group === "couple" ? "/couple" : "/players")} />
+            <Press onPress={() => router.push("/account")} scale={0.92} accessibilityRole="button" accessibilityLabel={email ? "Account" : "Sign in or create an account"}
+              style={[st.share, { borderColor: email ? c.rose : c.line, backgroundColor: email ? c.rose : c.surface }]}>
+              {email ? (
+                <Text style={[st.initial, { color: c.onAccent }]}>{(name || email)[0].toUpperCase()}</Text>
+              ) : (
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={c.ink} strokeWidth={2} strokeLinecap="round">
+                  <Circle cx={12} cy={8.5} r={3.8} /><Path d="M4.5 20c1.4-3.6 4.2-5.4 7.5-5.4s6.1 1.8 7.5 5.4" />
+                </Svg>
+              )}
+            </Press>
           </View>
         </View>
 
         <Text style={[st.hello, { color: c.ink }]}>
-          Hey, <Text style={{ color: c.wine, fontFamily: font.displayItalic }}>{joinNames(players.map((p) => p.name))}</Text>. What are we playing?
+          Hey,{" "}
+          <Text onPress={() => router.push(group === "couple" ? "/couple" : "/players")} accessibilityRole="button" accessibilityLabel="Change players"
+            style={{ color: c.wine, fontFamily: font.displayItalic }}>
+            {joinNames(players.map((p) => p.name))}<Text style={{ fontSize: 20, color: c.muted }}> ✎</Text>
+          </Text>. What are we playing?
         </Text>
 
         <View>
@@ -176,6 +192,7 @@ const st = StyleSheet.create({
   badge: { fontFamily: font.heavy, fontSize: 11, letterSpacing: 1.2 },
   hdr: { flexDirection: "row", alignItems: "center", gap: 8 },
   share: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  initial: { fontFamily: font.heavy, fontSize: 17 },
   install: { height: 44, paddingLeft: 12, paddingRight: 16, borderRadius: 999, flexDirection: "row", alignItems: "center", gap: 6, shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 6 } },
   installText: { fontFamily: font.heavy, fontSize: 14 },
   hello: { fontFamily: font.display, fontSize: 37, lineHeight: 39 },

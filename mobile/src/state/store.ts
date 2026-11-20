@@ -5,7 +5,7 @@ import { fillTarget } from "@/game/match";
 import { localMood } from "@/game/mood";
 import { WHEELS } from "@/game/content";
 import type { Card, CardType, GroupId, Heat, PairId, Player, Sex, Wedge } from "@/game/types";
-import { askAI } from "@/lib/ai";
+import { AiLimitError, askAI } from "@/lib/ai";
 
 export const PAIR_SEX: Record<PairId, [Sex, Sex]> = { mf: ["m", "f"], ff: ["f", "f"], mm: ["m", "m"], any: [null, null] };
 
@@ -20,7 +20,7 @@ type State = {
   heat: Heat;
   turn: number;
   mood: string;
-  ai: { state: AiState; tod: Record<CardType, string[]> | null; wheel: Wedge[] | null; note: string };
+  ai: { state: AiState; tod: Record<CardType, string[]> | null; wheel: Wedge[] | null; note: string; limited: boolean };
 
   confirmAdult(): void;
   setGroup(g: GroupId): void;
@@ -48,17 +48,20 @@ export const useGame = create<State>((set, get) => {
   async function loadMood() {
     const id = ++aiReq;
     const { mood, heat, group, pair, players } = get();
-    set({ ai: { state: mood ? "loading" : "off", tod: null, wheel: null, note: "" } });
+    set({ ai: { state: mood ? "loading" : "off", tod: null, wheel: null, note: "", limited: false } });
     if (!mood) return;
     const req = { vibe: mood, heat, group, pair, players: players.length };
-    const [t, w] = await Promise.allSettled([askAI({ ...req, game: "tod" }), askAI({ ...req, game: "wheel" })]);
+    // In parallel for speed. Only the cards call counts as the new mood; the server also refuses the wheel call past the limit.
+    const [t, w] = await Promise.allSettled([askAI({ ...req, game: "tod", newMood: true }), askAI({ ...req, game: "wheel" })]);
     if (id !== aiReq) return;
     const tod = t.status === "fulfilled" && t.value.truths ? { truth: shuffle(t.value.truths), dare: shuffle(t.value.dares!) } : null;
     const wheel = w.status === "fulfilled" && w.value.wedges ? w.value.wedges.map((x): Wedge => [x.label, [x.text]]) : null;
     const ok = !!(tod || wheel);
     const why = t.status === "rejected" ? (t.reason as Error)?.message ?? "" : "";
+    const limited = t.status === "rejected" && t.reason instanceof AiLimitError;
     set({
       ai: {
+        limited,
         state: ok ? "ready" : "local",
         tod: tod ?? localMood(mood, group, heat),
         wheel,
@@ -91,7 +94,7 @@ export const useGame = create<State>((set, get) => {
     heat: 1,
     turn: 0,
     mood: "",
-    ai: { state: "off", tod: null, wheel: null, note: "" },
+    ai: { state: "off", tod: null, wheel: null, note: "", limited: false },
 
     confirmAdult: () => set({ adult: true }),
     setGroup: (group) => {

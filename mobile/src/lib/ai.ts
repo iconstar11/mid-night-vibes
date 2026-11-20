@@ -9,7 +9,14 @@ export type AiRequest = {
   group: string;
   pair: string;
   players: number;
+  /** First call for a new mood: this is what counts toward the daily limit */
+  newMood?: boolean;
 };
+
+/** Thrown when today's AI moods for the player's plan are used up. */
+export class AiLimitError extends Error {
+  constructor(message: string, public plan: string) { super(message); }
+}
 export type AiResponse = {
   truths?: string[];
   dares?: string[];
@@ -26,6 +33,7 @@ export async function askAI(req: AiRequest): Promise<AiResponse> {
       // FunctionsHttpError carries the function's JSON body with a friendly message
       const ctx = (error as { context?: Response }).context;
       const body = ctx && typeof ctx.json === "function" ? await ctx.json().catch(() => null) : null;
+      if (body?.limit) throw new AiLimitError(body.error, body.plan ?? "guest");
       throw new Error(body?.error ?? "");
     }
     return data ?? {};

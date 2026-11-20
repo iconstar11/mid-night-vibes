@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 
+import { router } from "expo-router";
+
 import { GROUPS } from "@/game/content";
+import { refreshAccount, useAuth } from "@/lib/auth";
 import { useGame, type AiState } from "@/state/store";
 import { font, useColors } from "@/theme/tokens";
 import { Sheet } from "./Sheet";
@@ -46,9 +49,12 @@ export function MoodSheet({ open, onClose }: { open: boolean; onClose: () => voi
   const group = useGame((g) => g.group);
   const mood = useGame((g) => g.mood);
   const note = useGame((g) => g.ai.note);
+  const limited = useGame((g) => g.ai.limited);
+  const { plan, used, limit, email } = useAuth();
   const setMood = useGame((g) => g.setMood);
   const [text, setText] = useState(mood);
-  useEffect(() => { if (open) setText(mood); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) { setText(mood); refreshAccount(); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const left = Math.max(limit - used, 0);
 
   const apply = (m: string) => { setMood(m); onClose(); };
   return (
@@ -63,7 +69,17 @@ export function MoodSheet({ open, onClose }: { open: boolean; onClose: () => voi
         ))}
       </View>
       <Fine style={{ textAlign: "left" }}>{note || "AI writes new truths, dares and wheel wedges around it, at your heat level."}</Fine>
-      <Btn label="Set the mood" onPress={() => apply(text)} />
+      <Text style={[st.left, { color: left ? c.muted : c.rose }]}>
+        <Text style={{ color: c.brass }}>✦</Text> {left} of {limit} AI moods left today{plan === "guest" && !email ? " · guest" : ""}
+      </Text>
+      {(limited || !left) && plan !== "premium" ? (
+        <>
+          <Btn label={plan === "guest" ? "Create a free account for more" : "See Premium"} onPress={() => { onClose(); router.push("/account"); }} />
+          <Btn kind="quiet" label="Use the built-in cards for this mood" onPress={() => apply(text)} />
+        </>
+      ) : (
+        <Btn label="Set the mood" onPress={() => apply(text)} />
+      )}
       {!!mood && <Btn kind="quiet" label="Clear the mood" onPress={() => apply("")} />}
     </Sheet>
   );
@@ -76,4 +92,5 @@ const st = StyleSheet.create({
   h: { fontFamily: font.display, fontSize: 32, lineHeight: 34 },
   input: { fontFamily: font.body, fontSize: 17, paddingVertical: 15, paddingHorizontal: 18, borderRadius: 16, borderWidth: 1.5 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  left: { fontFamily: font.semibold, fontSize: 14 },
 });
