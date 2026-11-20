@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Midnight Vibes",
+    "slug": "midnight-vibes",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "online.midnightvibes.app"
+    },
+    "android": {
+      "package": "online.midnightvibes.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#4E1D3A",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/favicon.png",
+      "name": "Midnight Vibes",
+      "themeColor": "#7A1F3D",
+      "backgroundColor": "#1F0A14"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
+    "scheme": "midnightvibes",
+    "backgroundColor": "#1F0A14",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

@@ -4,33 +4,53 @@
 
 18+ party game for couples and groups: Truth or Dare and Spin the Wheel at three heat levels, both tailored by AI to the mood you set.
 
-## Run locally
+## What's in this repo
 
-Double-click `start.bat`, or:
+| Folder | What it is |
+|---|---|
+| `mobile/` | The new app: Expo + React Native + TypeScript, one codebase for iOS, Android and web |
+| `supabase/` | Backend: Postgres schema with Row Level Security, and the `ideas` Edge Function that calls Claude |
+| `legacy/` | The original single-file web version. It keeps working until the new web build replaces it |
+
+## Run the new app
 
 ```
+cd mobile
 npm install
-node server.js
+npx expo start          # press w for web, or scan the QR code with a development build
+npm test                # game logic tests
+npx tsc --noEmit        # typecheck
 ```
 
-Then open http://localhost:5500
+Copy `mobile/.env.example` to `mobile/.env.local` and fill in the Supabase URL and anon key (both are public).
+Without them the app still works and uses the built-in cards. For AI during development you can instead
+point `EXPO_PUBLIC_AI_URL` at the legacy server (`http://localhost:5500/api/ideas`).
 
-## AI mood
-
-Set a mood (like "kissing") in either game and Claude writes new truths, dares and wheel wedges for it. This uses Claude through the server, so your API key never reaches the browser.
-Create a file named `.env` next to `server.js`:
+### Web build (installable)
 
 ```
-ANTHROPIC_API_KEY=your-key-here
+cd mobile
+npx expo export -p web   # static site in mobile/dist
 ```
 
-`start.bat` loads it automatically. Without a key, or when `index.html` is opened directly,
-the games use built-in cards that match the mood instead.
+`mobile/netlify.toml` builds and serves it. On Android and desktop Chrome or Edge the **Install** button adds it
+like a normal app; on iPhone it shows Safari's Share → Add to Home Screen steps. Installing needs HTTPS (or localhost).
+When you release a web change, bump `VERSION` in `mobile/public/sw.js` so installed copies update.
 
-## Install as an app
+## Backend (Supabase)
 
-The site is a Progressive Web App. On Android and desktop Chrome or Edge, the **Install** button on the
-home screen adds it like a normal app. On iPhone, the button shows how to use Safari's
-Share → Add to Home Screen. Installing needs HTTPS (or localhost).
+1. Create a project at supabase.com (the free tier is fine for development; it pauses after a week idle).
+2. Enable **Anonymous sign-ins** under Authentication → Providers.
+3. Install the Supabase CLI, then from this folder:
+   ```
+   supabase link --project-ref <your-ref>
+   supabase db push                                  # creates the tables and policies
+   supabase secrets set ANTHROPIC_API_KEY=<your key>  # stays on Supabase, never in the app
+   supabase functions deploy ideas
+   ```
+4. Put the project URL and anon key in `mobile/.env.local`.
 
-When you change `index.html`, bump `VERSION` in `sw.js` so installed copies update.
+## Run the legacy version
+
+Double-click `legacy/start.bat`, or `cd legacy && npm install && node server.js`, then open http://localhost:5500.
+For AI, put `ANTHROPIC_API_KEY=...` in `legacy/.env`. Without a key the games use built-in cards that match the mood.

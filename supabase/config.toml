@@ -1,0 +1,23 @@
+# Supabase project config for local development (`supabase start`).
+# Create the hosted project in the dashboard, then: supabase link --project-ref <ref>
+project_id = "midnight-vibes"
+
+[api]
+port = 54321
+
+[db]
+port = 54322
+major_version = 17
+
+[auth]
+site_url = "http://localhost:8081"
+additional_redirect_urls = ["https://midnightvibes.online"]
+# Playing without an account uses anonymous sign-in
+enable_anonymous_sign_ins = true
+
+[realtime]
+enabled = true
+
+[functions.ideas]
+# The function checks the user's JWT itself (anonymous users included)
+verify_jwt = true
