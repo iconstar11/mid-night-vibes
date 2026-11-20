@@ -6,6 +6,13 @@
 <meta name="theme-color" content="#7A1F3D">
 <title>Midnight Vibes</title>
 <link rel="canonical" href="https://midnightvibes.online/">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Midnight Vibes">
 <meta property="og:title" content="Midnight Vibes">
 <meta property="og:url" content="https://midnightvibes.online/">
 <meta name="description" content="Free adult party games for couples, friends, girls' night and boys' night: truth or dare and spin the wheel, tailored by AI to your mood. No download, no sign-up.">
@@ -108,6 +115,18 @@ input::placeholder{color:var(--muted);opacity:.8}
 .turn strong{font-family:var(--display);font-weight:400;font-size:1.6rem;line-height:1.1;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .heatPill{height:44px;padding:0 14px;flex:none;border-radius:999px;background:var(--surface);border:1.5px solid var(--line);font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:6px}
 .heatPill i{font-style:normal;color:var(--rose);letter-spacing:1px;font-size:.7rem}
+
+/* Install */
+.hdrBtns{display:flex;gap:8px;align-items:center;flex:none}
+.installBtn{height:44px;padding:0 16px 0 12px;border-radius:999px;background:var(--brass);color:var(--on-accent);font-weight:800;font-size:.88rem;
+  display:flex;align-items:center;gap:6px;box-shadow:0 8px 18px -10px var(--brass);animation:tileIn .4s both}
+.installBtn svg{width:18px;height:18px}
+.installBtn:active{transform:scale(.96)}
+@media (max-width:370px){.installBtn{padding:0 12px 0 10px;font-size:.82rem}.badge{display:none}}
+.steps{list-style:none;display:grid;gap:12px;counter-reset:s}
+.steps li{display:flex;align-items:center;gap:12px;counter-increment:s;font-size:1rem}
+.steps li::before{content:counter(s);flex:none;width:30px;height:30px;border-radius:50%;background:var(--wine);color:var(--on-accent);display:grid;place-items:center;font-weight:800;font-size:.9rem}
+.steps svg{width:22px;height:22px;vertical-align:-5px;color:var(--wine)}
 
 /* Heat control */
 .heat{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--surface);border:1.5px solid var(--line);border-radius:999px;padding:4px}
@@ -305,7 +324,10 @@ input::placeholder{color:var(--muted);opacity:.8}
 <section class="screen" id="home">
   <header class="bar">
     <span class="brand">Midnight <em>Vibes</em><span class="badge" id="groupBadge"></span></span>
-    <button class="round" id="editPlayers" aria-label="Change players">✎</button>
+    <div class="hdrBtns">
+      <button class="installBtn" id="installBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>Install</button>
+      <button class="round" id="editPlayers" aria-label="Change players">✎</button>
+    </div>
   </header>
   <h2 class="hello">Hey, <span id="names"></span>. What are we playing?</h2>
   <div>
@@ -381,6 +403,19 @@ input::placeholder{color:var(--muted);opacity:.8}
     <button class="skip" id="sheetSkip">Skip</button>
     <button class="done" id="sheetDone"></button>
   </div>
+</div>
+
+<!-- Install guide for iPhone and iPad, where websites can't show an install prompt -->
+<div class="sheet light" id="iosSheet" role="dialog" aria-modal="true" aria-labelledby="iosTitle" hidden>
+  <div class="grab" aria-hidden="true"></div>
+  <h3 id="iosTitle">Install Midnight Vibes</h3>
+  <p class="fine" id="iosLead">Add it to your home screen. It opens full screen like an app, no App Store needed.</p>
+  <ol class="steps" id="iosSteps">
+    <li><span>Tap <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Share"><path d="M12 3v12M8 7l4-4 4 4M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg> <b>Share</b> in Safari's toolbar</span></li>
+    <li><span>Scroll down and tap <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-label="Add"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/></svg> <b>Add to Home Screen</b></span></li>
+    <li><span>Tap <b>Add</b>. The moon icon appears on your home screen.</span></li>
+  </ol>
+  <button class="btn primary" id="iosDone">Got it</button>
 </div>
 
 <!-- Mood sheet: AI tailors Truth or Dare and the wheel to it -->
@@ -921,6 +956,31 @@ wheelEl.addEventListener("pointercancel",endDrag);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if($("wheel").classList.contains("on"))drawWheel()});
 document.fonts&&document.fonts.ready.then(()=>{if($("wheel").classList.contains("on"))drawWheel()});
 setHeat(1); renderMood();
+
+// ---------- Install (PWA) ----------
+// Android and desktop Chrome/Edge show their own install prompt; iPhone gets a short Add to Home Screen guide.
+const standalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+let installEvt=null;
+function showInstall(){$("installBtn").hidden=standalone()||!(installEvt||isIOS)}
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;showInstall()});
+addEventListener("appinstalled",()=>{installEvt=null;showInstall()});
+$("installBtn").onclick=async()=>{
+  if(installEvt){
+    installEvt.prompt();
+    const {outcome}=await installEvt.userChoice.catch(()=>({}));
+    if(outcome==="accepted"){installEvt=null;showInstall()}
+    return;
+  }
+  // Only Safari can add to the home screen on iOS; other iOS browsers get told to open it there
+  const safari=/safari/i.test(navigator.userAgent)&&!/crios|fxios|edgios|opios/i.test(navigator.userAgent);
+  $("iosLead").textContent=safari?"Add it to your home screen. It opens full screen like an app, no App Store needed."
+    :"On iPhone, only Safari can add apps to the home screen. Open midnightvibes.online in Safari, then:";
+  openSheetEl($("iosSheet"));
+};
+$("iosDone").onclick=()=>closePanels();
+showInstall();
+if("serviceWorker" in navigator&&location.protocol.startsWith("http")) addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 </script>
 </body>
 </html>

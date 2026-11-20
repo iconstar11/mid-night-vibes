@@ -26,3 +26,11 @@ ANTHROPIC_API_KEY=your-key-here
 
 `start.bat` loads it automatically. Without a key, or when `index.html` is opened directly,
 the games use built-in cards that match the mood instead.
+
+## Install as an app
+
+The site is a Progressive Web App. On Android and desktop Chrome or Edge, the **Install** button on the
+home screen adds it like a normal app. On iPhone, the button shows how to use Safari's
+Share → Add to Home Screen. Installing needs HTTPS (or localhost).
+
+When you change `index.html`, bump `VERSION` in `sw.js` so installed copies update.

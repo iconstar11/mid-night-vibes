@@ -173,13 +173,25 @@ async function ideas(req, res) {
   }
 }
 
+// Only these files are served (an allowlist, so nothing else in the folder, like .env, can be fetched)
+const FILES = {
+  "/index.html": "text/html; charset=utf-8",
+  "/manifest.webmanifest": "application/manifest+json",
+  "/sw.js": "text/javascript; charset=utf-8",
+  "/icons/icon-192.png": "image/png",
+  "/icons/icon-512.png": "image/png",
+  "/icons/maskable-512.png": "image/png",
+  "/icons/apple-touch-icon.png": "image/png",
+};
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   if (url.pathname === "/api/ideas" && req.method === "POST") return ideas(req, res);
-  if ((url.pathname === "/" || url.pathname === "/index.html") && req.method === "GET") {
-    const html = await readFile(path.join(here, "index.html"));
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    return res.end(html);
+  const file = req.method === "GET" && FILES[url.pathname === "/" ? "/index.html" : url.pathname];
+  if (file) {
+    const body = await readFile(path.join(here, url.pathname === "/" ? "index.html" : url.pathname.slice(1)));
+    res.writeHead(200, { "Content-Type": file, "Cache-Control": url.pathname.startsWith("/icons/") ? "public, max-age=604800" : "no-cache" });
+    return res.end(body);
   }
   res.writeHead(404, { "Content-Type": "text/plain" });
   res.end("Not found");
