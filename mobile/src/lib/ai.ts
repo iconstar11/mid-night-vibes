@@ -11,6 +11,8 @@ export type AiRequest = {
   players: number;
   /** First call for a new mood: this is what counts toward the daily limit */
   newMood?: boolean;
+  /** Premium "Picked for you": original text of built-in cards they starred (max 5) */
+  likes?: string[];
 };
 
 /** Thrown when today's AI moods for the player's plan are used up. */

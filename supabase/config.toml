@@ -28,3 +28,7 @@ verify_jwt = true
 [functions.stripe-webhook]
 # Stripe can't send a Supabase JWT; the function verifies the Stripe-Signature header instead
 verify_jwt = false
+
+[functions.weekly-report]
+# Called by pg_cron and the report page with REPORT_KEY, not a user JWT; the function checks the key itself
+verify_jwt = false

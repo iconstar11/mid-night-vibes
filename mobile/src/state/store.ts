@@ -7,6 +7,7 @@ import { localMood } from "@/game/mood";
 import { WHEELS } from "@/game/content";
 import type { Card, CardType, GroupId, Heat, PairId, Player, Sex, Wedge } from "@/game/types";
 import { AiLimitError, askAI } from "@/lib/ai";
+import { recentStarredTexts } from "@/lib/stars";
 import { supabase } from "@/lib/supabase";
 
 export const PAIR_SEX: Record<PairId, [Sex, Sex]> = { mf: ["m", "f"], ff: ["f", "f"], mm: ["m", "m"], any: [null, null] };
@@ -26,6 +27,8 @@ type State = {
   turn: number;
   mood: string;
   ai: { state: AiState; tod: Record<CardType, string[]> | null; wheel: Wedge[] | null; note: string; limited: boolean };
+  /** Set from the account: Premium players get an occasional "Picked for you" card from their stars. */
+  premium: boolean;
 
   confirmAdult(): void;
   setGroup(g: GroupId): void;
@@ -45,6 +48,11 @@ type State = {
 };
 
 let deck = new Draw("couple", 1);
+// "Picked for you" (Premium): a few AI cards in the style of their starred cards, one every TAILOR_EVERY cards
+const TAILOR_EVERY = 8;
+let tailored: Record<CardType, string[]> = { truth: [], dare: [] };
+let tailoring = false;
+let draws = 0;
 let aiReq = 0;
 let topping = false;
 let heatTimer: ReturnType<typeof setTimeout> | undefined;
@@ -88,6 +96,18 @@ export const useGame = create<State>((set, get) => {
     });
   }
 
+  async function fetchTailored() {
+    const { premium, mood, heat, group, pair, players } = get();
+    const likes = recentStarredTexts(5);
+    if (!premium || likes.length < 3 || tailoring) return;
+    tailoring = true;
+    try {
+      const j = await askAI({ game: "tod", vibe: mood, heat, group, pair, players: players.length, likes });
+      if (j.truths?.length) tailored = { truth: shuffle(j.truths).slice(0, 3), dare: shuffle(j.dares ?? []).slice(0, 3) };
+    } catch {}
+    tailoring = false;
+  }
+
   async function topUp() {
     const { ai, mood, heat, group, pair, players } = get();
     if (ai.state !== "ready" || topping || !ai.tod) return;
@@ -113,6 +133,7 @@ export const useGame = create<State>((set, get) => {
     turn: 0,
     mood: "",
     ai: { state: "off", tod: null, wheel: null, note: "", limited: false },
+    premium: false,
 
     confirmAdult: () => set({ adult: true }),
     snapshot: () => {
@@ -139,18 +160,21 @@ export const useGame = create<State>((set, get) => {
       const pair = get().pair;
       set({ players: names.map((name, i) => ({ name, g: PAIR_SEX[pair][i], into: "both" as const })), turn: 0 });
       deck = new Draw("couple", get().heat);
+      tailored = { truth: [], dare: [] };
       loadMood();
     },
     setRoster: (roster) => set({ roster }),
     startGroup: () => {
       set((s) => ({ players: s.roster.map((p) => ({ ...p })), turn: 0 }));
       deck = new Draw(get().group, get().heat);
+      tailored = { truth: [], dare: [] };
       loadMood();
     },
     setHeat: (heat) => {
       if (heat === get().heat) return;
       set({ heat });
       deck = new Draw(get().group, heat);
+      tailored = { truth: [], dare: [] }; // written for the old heat
       if (get().mood) {
         clearTimeout(heatTimer);
         heatTimer = setTimeout(() => loadMood(), 500);
@@ -165,6 +189,13 @@ export const useGame = create<State>((set, get) => {
     },
     draw: (type) => {
       const s = get();
+      draws++;
+      // Premium: now and then a "Picked for you" card; fetch a few ahead of time
+      if (s.premium && draws % TAILOR_EVERY === 0 && tailored[type].length) {
+        const text = tailored[type].pop()!;
+        return { type, text: fillTarget(text, current(s), s.players), ai: true, id: aiCardId(text), source: "tailored" };
+      }
+      if (s.premium && draws % TAILOR_EVERY === TAILOR_EVERY - 4 && !tailored[type].length) fetchTailored();
       const pool = s.ai.tod?.[type];
       if (pool && pool.length) {
         const text = pool[pool.length - 1];

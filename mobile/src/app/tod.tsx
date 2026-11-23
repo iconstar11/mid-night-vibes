@@ -118,7 +118,9 @@ function Game() {
 
   const who = shuffleText ? `${me}, the deck is choosing` : card ? `${me}, your turn to ${card.type === "truth" ? "tell the truth" : "take the dare"}` : `Round ${turn + 1}`;
   const text = shuffleText ?? card?.text ?? `${me}, truth or dare?`;
-  const kind = shuffleText ? "Random" : card ? (card.ai ? "✦ " : "") + cardLabel(card.type) : HEAT_NAMES[heat - 1];
+  const kind = shuffleText ? "Random"
+    : card ? (card.source === "tailored" ? "✦ Picked for you · " : card.ai ? "✦ " : "") + cardLabel(card.type)
+    : HEAT_NAMES[heat - 1];
 
   return (
     <View style={{ flex: 1 }}>

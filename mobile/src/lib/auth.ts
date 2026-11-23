@@ -65,6 +65,7 @@ export async function refreshAccount() {
     product: row?.product ?? null,
     canManage: !!row?.can_manage,
   });
+  useGame.setState({ premium: useAuth.getState().plan === "premium" });
   if (base.email) {
     if (!before.email) trackSignIn(user, before.ready);
     loadProfile(base.name).catch(() => null);

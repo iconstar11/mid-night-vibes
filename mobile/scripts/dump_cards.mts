@@ -24,5 +24,9 @@ for (const group of ["couple", "group"] as const) {
 
 mkdirSync("../data", { recursive: true });
 writeFileSync("../data/cards.json", JSON.stringify(rows, null, 1));
+// Card text by id for the weekly report (public built-in text only), committed with the functions
+const byId: Record<string, { text: string; game: string; group: string; type: string; heat: number }> = {};
+for (const r of rows) byId[r.id] ??= { text: r.text, game: r.game, group: r.group, type: r.type, heat: r.heat };
+writeFileSync("../supabase/functions/_shared/cards.json", JSON.stringify(byId));
 const dupes = rows.length - new Set(rows.map((r) => r.id + r.group + r.game)).size;
 console.log(`${rows.length} cards written to data/cards.json${dupes ? ` (${dupes} repeated texts share an id)` : ""}`);

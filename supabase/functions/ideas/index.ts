@@ -56,12 +56,16 @@ Deno.serve(async (req) => {
 
   // Same validation as legacy/server.js
   let task: TaskName = "tod", vibe = "", heat = 1, pair = "any", who = PAIRS.any, audience = "any", newMood = false;
+  let likes: string[] = []; // Premium "Picked for you": built-in cards they starred
   try {
     const raw = await req.text();
     if (raw.length > 2000) throw new Error("too large");
     const body = JSON.parse(raw);
     task = body.game === "wheel" ? "wheel" : "tod";
     newMood = body.newMood === true; // the app sets this on the first call for a mood
+    if (Array.isArray(body.likes)) {
+      likes = body.likes.filter((x: unknown): x is string => typeof x === "string").slice(0, 5).map((x: string) => x.trim().slice(0, 200)).filter(Boolean);
+    }
     vibe = String(body.vibe ?? "").trim().slice(0, 200);
     heat = [1, 2, 3].includes(body.heat) ? body.heat : 1;
     pair = Object.hasOwn(PAIRS, body.pair) ? body.pair : "any";
@@ -79,6 +83,7 @@ Deno.serve(async (req) => {
   const { data: lim } = await admin.from("plan_limits").select("ai_moods_per_day,window_days").eq("plan", tier).maybeSingle();
   const limit = lim?.ai_moods_per_day ?? 0;
   const window = lim?.window_days ?? 1;
+  if (likes.length && tier !== "premium") return send(403, { error: "Picked-for-you cards are a Premium feature." });
   if (limit <= 0) return send(429, { error: LIMIT_MESSAGE[tier] ?? LIMIT_MESSAGE.guest, limit: true, plan: tier, signin: tier === "guest" });
 
   // Count it (moods over the window; raw calls per day are capped too), cached or not
@@ -91,9 +96,9 @@ Deno.serve(async (req) => {
     return send(429, { error: LIMIT_MESSAGE[tier] ?? LIMIT_MESSAGE.guest, limit: true, plan: tier });
   }
 
-  // Popular moods: reuse one of a few saved results
+  // Popular moods: reuse one of a few saved results (never for personal "Picked for you" cards)
   const key = [task, vibe.toLowerCase().replace(/\s+/g, " "), heat, audience].join("|");
-  const { data: cached } = await admin.from("ai_cache").select("variant,payload").eq("key", key);
+  const { data: cached } = likes.length ? { data: null } : await admin.from("ai_cache").select("variant,payload").eq("key", key);
   if (cached && cached.length >= CACHE_VARIANTS) {
     const pick = cached[Math.floor(Math.random() * cached.length)];
     return send(200, pick.payload);
@@ -103,7 +108,11 @@ Deno.serve(async (req) => {
   const isGroup = !audience.startsWith("couple");
   // Groups: ask for a few spares, because the consent filter below may drop some
   const spare = isGroup ? (task === "wheel" ? "\nWrite 12 wedges instead of 8." : "\nWrite 8 truths and 10 dares instead.") : "";
-  const job: Job = { task, userText: `Players: ${who}\nHeat level: ${HEAT[heat]}\nMood: ${vibe || "no particular mood, surprise us"}\n\n${t.ask}${spare}` };
+  // Premium: cards in the spirit of ones they starred (built-in card text only, never anything they typed)
+  const liked = likes.length
+    ? `\n\nThese players loved these cards. Write new ones in the same spirit and style (don't repeat them), with the same heat and rules:\n${likes.map((l) => `- ${l}`).join("\n")}`
+    : "";
+  const job: Job = { task, userText: `Players: ${who}\nHeat level: ${HEAT[heat]}\nMood: ${vibe || "no particular mood, surprise us"}\n\n${t.ask}${spare}${liked}` };
 
   const active = PROVIDERS.filter((p) => p.enabled());
   if (!active.length) return send(503, { error: "AI ideas aren't set up: add an AI provider key as a Supabase secret." });
@@ -114,7 +123,7 @@ Deno.serve(async (req) => {
     try {
       const result = t.clean(consentGuard(await p.run(job), isGroup));
       if (!result) throw new ProviderError(502, "No ideas came back.", true);
-      await admin.from("ai_cache").upsert({ key, variant: cached?.length ?? 0, payload: result }).then(({ error }) => {
+      if (!likes.length) await admin.from("ai_cache").upsert({ key, variant: cached?.length ?? 0, payload: result }).then(({ error }) => {
         if (error) console.error("cache:", error.message);
       });
       const res = send(200, result);
