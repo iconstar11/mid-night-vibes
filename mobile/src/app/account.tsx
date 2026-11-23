@@ -9,7 +9,7 @@ import { AdultOnly } from "@/components/Guard";
 import { ProfileSettings } from "@/components/ProfileSettings";
 import { Btn, Fine, Label, RoundBtn, Screen, Seg } from "@/components/ui";
 import { PLAN_NAMES, aiAllowance, refreshAccount,signIn, signInWithGoogle, signOut, signUp, useAuth } from "@/lib/auth";
-import { OFFERS, buy, manageBilling, waitForPremium, type Product } from "@/lib/billing";
+import { OFFERS, manageBilling, payByCard, payByMpesa, waitForPayment, waitForPremium, type Product } from "@/lib/billing";
 import { peekPending, type PendingReason } from "@/lib/pending";
 import { useProfile } from "@/lib/profile";
 import { track } from "@/lib/track";
@@ -24,7 +24,7 @@ function AccountScreen() {
   const c = useColors();
   const { ready, email, name: signUpName, plan } = useAuth();
   const name = useProfile((p) => p.name) || signUpName;
-  const { paid } = useLocalSearchParams<{ paid?: string }>();
+  const { paid, ref } = useLocalSearchParams<{ paid?: string; ref?: string }>();
   const [paying, setPaying] = useState<"waiting" | "done" | "slow" | null>(paid ? "waiting" : null);
   // Sent here mid-game or from a live room: say why, and that they'll carry on afterwards
   const [why, setWhy] = useState<PendingReason | null>(null);
@@ -33,10 +33,10 @@ function AccountScreen() {
   useEffect(() => {
     ensureSession().catch(() => null).then(refreshAccount);
   }, []);
-  // Back from Stripe: the webhook switches Premium on within a few seconds
+  // Back from Paystack's card page: check that payment (the webhook may also switch Premium on)
   useEffect(() => {
-    if (paid) waitForPremium().then((ok) => { setPaying(ok ? "done" : "slow"); if (ok) track("premium_on", { product: useAuth.getState().product }); });
-  }, [paid]);
+    if (paid) waitForPremium(ref).then((ok) => { setPaying(ok ? "done" : "slow"); if (ok) track("premium_on", { product: useAuth.getState().product, method: "card" }); });
+  }, [paid, ref]);
 
   return (
     <Screen scroll>
@@ -143,18 +143,39 @@ function PaidNote({ state }: { state: "waiting" | "done" | "slow" }) {
 
 const PERKS = ["100 AI moods a day", "AI cards and wheels for any mood", "Every heat level, every group", "Supports a small indie app"];
 
-/** Premium offers: Stripe Checkout on the web. Only signed-in users see this, so Premium stays with their account. */
+/** Premium offers via Paystack: card (USD, monthly/yearly renew) or M-Pesa (KES, buys days). Signed-in users only. */
 function Premium() {
   const c = useColors();
   useEffect(() => { track("premium_view", { plan: useAuth.getState().plan }); }, []);
-  const [busy, setBusy] = useState<Product | null>(null);
+  const [open, setOpen] = useState<Product>("yearly");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  async function pick(p: Product) {
+  const [mpesa, setMpesa] = useState<null | { phone: string; stage: "phone" | "waiting" | "failed"; message?: string }>(null);
+  const offer = OFFERS.find((o) => o.id === open)!;
+  const digits = (mpesa?.phone ?? "").replace(/\D/g, "").length;
+
+  async function card() {
     if (busy) return;
-    setBusy(p); setError("");
-    try { await buy(p); } catch (e) { setError((e as Error).message); }
-    setBusy(null);
+    setBusy(true); setError("");
+    try { await payByCard(open); } catch (e) { setError((e as Error).message); }
+    setBusy(false);
   }
+  async function sendPrompt() {
+    if (busy || !mpesa) return;
+    setBusy(true); setError("");
+    try {
+      const { reference, message } = await payByMpesa(open, mpesa.phone);
+      setMpesa({ ...mpesa, stage: "waiting", message });
+      const result = await waitForPayment(reference);
+      if (result === "success") { setMpesa(null); track("premium_on", { product: open, method: "mpesa" }); }
+      else setMpesa({ ...mpesa, stage: "failed", message: result === "failed" ? "The payment didn't go through. Try again." : "No confirmation yet. If you paid, Premium will show here in a minute." });
+    } catch (e) {
+      setError((e as Error).message);
+      setMpesa({ ...mpesa, stage: "phone" });
+    }
+    setBusy(false);
+  }
+
   return (
     <LinearGradient colors={[c.wine, c.plum]} start={{ x: 0, y: 0 }} end={{ x: 0.7, y: 1 }} style={st.premium}>
       <Text style={[st.premiumKicker, { color: c.brass }]}>MIDNIGHT VIBES PREMIUM</Text>
@@ -164,35 +185,75 @@ function Premium() {
       ))}
       <View style={{ gap: 10, marginTop: 10 }}>
         {OFFERS.map((o) => {
-          const best = o.id === "yearly";
+          const on = o.id === open;
           return (
-            <Pressable key={o.id} onPress={() => pick(o.id)} disabled={!!busy} accessibilityRole="button"
-              accessibilityLabel={`${o.title}, ${o.price} per ${o.per}`}
+            <Pressable key={o.id} onPress={() => { setOpen(o.id); setMpesa(null); setError(""); }} disabled={busy} accessibilityRole="radio"
+              accessibilityState={{ selected: on }} accessibilityLabel={`${o.title}, ${o.price} per ${o.per}, or ${o.kes} with M-Pesa`}
               style={({ pressed }) => [st.offer, {
-                backgroundColor: best ? c.onAccent : "transparent",
-                borderColor: best ? c.onAccent : c.onAccent + "66",
+                backgroundColor: on ? c.onAccent : "transparent",
+                borderColor: on ? c.onAccent : c.onAccent + "66",
                 transform: [{ scale: pressed ? 0.98 : 1 }],
               }]}>
               <View style={{ flex: 1 }}>
-                <Text style={[st.offerTitle, { color: best ? c.wine : c.onAccent }]}>{o.title}{best ? "  ·  Best value" : ""}</Text>
-                <Text style={[st.offerNote, { color: best ? c.muted : c.onAccent }]}>{o.note}</Text>
+                <Text style={[st.offerTitle, { color: on ? c.wine : c.onAccent }]}>{o.title}{o.id === "yearly" ? "  ·  Best value" : ""}</Text>
+                <Text style={[st.offerNote, { color: on ? c.muted : c.onAccent }]}>{o.note}</Text>
               </View>
-              <Text style={[st.offerPrice, { color: best ? c.wine : c.onAccent }]}>
-                {busy === o.id ? "…" : o.price}<Text style={st.offerPer}> / {o.per}</Text>
-              </Text>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={[st.offerPrice, { color: on ? c.wine : c.onAccent }]}>{o.price}<Text style={st.offerPer}> / {o.per}</Text></Text>
+                <Text style={[st.offerNote, { color: on ? c.muted : c.onAccent }]}>or {o.kes} M-Pesa</Text>
+              </View>
             </Pressable>
           );
         })}
       </View>
+
+      {!mpesa ? (
+        <View style={st.payRow}>
+          <Pressable onPress={card} disabled={busy} accessibilityRole="button" style={[st.payBtn, { backgroundColor: c.onAccent }]}>
+            <Text style={[st.payText, { color: c.wine }]}>{busy ? "Opening…" : `Card · ${offer.price}`}</Text>
+          </Pressable>
+          <Pressable onPress={() => { setMpesa({ phone: "", stage: "phone" }); setError(""); }} disabled={busy} accessibilityRole="button"
+            style={[st.payBtn, { backgroundColor: MPESA_GREEN }]}>
+            <Text style={[st.payText, { color: "#FFFFFF" }]}>M-Pesa · {offer.kes}</Text>
+          </Pressable>
+        </View>
+      ) : mpesa.stage === "waiting" ? (
+        <View style={[st.mpesaBox, { borderColor: c.onAccent + "55" }]}>
+          <ActivityIndicator color={c.onAccent} />
+          <Text style={[st.perk, { color: c.onAccent, textAlign: "center" }]}>{mpesa.message || "Check your phone and enter your M-Pesa PIN."}</Text>
+          <Text style={[st.offerNote, { color: c.onAccent, textAlign: "center" }]}>Waiting for M-Pesa… this can take up to a minute.</Text>
+        </View>
+      ) : (
+        <View style={[st.mpesaBox, { borderColor: c.onAccent + "55" }]}>
+          {mpesa.stage === "failed" && <Text style={[st.err, { color: c.onAccent }]}>{mpesa.message}</Text>}
+          <Text style={[st.offerNote, { color: c.onAccent }]}>Your M-Pesa number. You'll get a PIN prompt for {offer.kes}.</Text>
+          <TextInput value={mpesa.phone} onChangeText={(phone) => setMpesa({ ...mpesa, phone })} placeholder="0712 345 678" placeholderTextColor={c.muted}
+            keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" maxLength={16} onSubmitEditing={sendPrompt}
+            style={[st.input, { borderColor: c.onAccent + "55", backgroundColor: c.onAccent, color: c.ink }]} />
+          <View style={st.payRow}>
+            <Pressable onPress={() => setMpesa(null)} disabled={busy} accessibilityRole="button" style={[st.payBtn, { borderWidth: 1.5, borderColor: c.onAccent + "66" }]}>
+              <Text style={[st.payText, { color: c.onAccent }]}>Back</Text>
+            </Pressable>
+            <Pressable onPress={sendPrompt} disabled={busy || digits < 9} accessibilityRole="button"
+              style={[st.payBtn, { backgroundColor: MPESA_GREEN, opacity: digits < 9 ? 0.6 : 1 }]}>
+              <Text style={[st.payText, { color: "#FFFFFF" }]}>{busy ? "Sending…" : "Send PIN prompt"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
       {!!error && <Text style={[st.err, { color: c.onAccent }]}>{error}</Text>}
-      <Text style={[st.perk, { color: c.onAccent, fontSize: 12.5, opacity: 0.7 }]}>Secure payment by Stripe. Prices in US dollars.</Text>
+      <Text style={[st.perk, { color: c.onAccent, fontSize: 12.5, opacity: 0.7 }]}>
+        Secure payment by Paystack. Cards are charged in US dollars; M-Pesa in Kenyan shillings.
+      </Text>
     </LinearGradient>
   );
 }
 
+const MPESA_GREEN = "#2E9E4F";
+
 function PremiumActive() {
   const c = useColors();
-  const { premiumUntil, product, canManage } = useAuth();
+  const { premiumUntil, product, canManage, renews } = useAuth();
   const [error, setError] = useState("");
   const until = premiumUntil ? new Date(premiumUntil).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) : null;
   const label = product === "pass" ? "Party pass" : product === "yearly" ? "Yearly plan" : product === "monthly" ? "Monthly plan" : "Premium";
@@ -200,11 +261,12 @@ function PremiumActive() {
     <LinearGradient colors={[c.wine, c.plum]} start={{ x: 0, y: 0 }} end={{ x: 0.7, y: 1 }} style={st.premium}>
       <Text style={[st.premiumKicker, { color: c.brass }]}>YOU'RE ON PREMIUM</Text>
       <Text style={[st.premiumTitle, { color: c.onAccent }]}>{label}</Text>
-      {until && <Text style={[st.perk, { color: c.onAccent }]}>{product === "pass" ? "Ends" : "Renews or ends"} {until}</Text>}
+      {until && <Text style={[st.perk, { color: c.onAccent }]}>{renews ? "Renews around" : "Ends"} {until}</Text>}
+      {!renews && <Text style={[st.offerNote, { color: c.onAccent }]}>Buy again any time; new days add on to what you have.</Text>}
       {canManage && (
         <Pressable onPress={() => manageBilling().catch((e) => setError((e as Error).message))} accessibilityRole="button"
           style={[st.soon, { borderColor: c.onAccent + "55" }]}>
-          <Text style={[st.soonText, { color: c.onAccent }]}>Manage billing and receipts</Text>
+          <Text style={[st.soonText, { color: c.onAccent }]}>Update card or cancel renewal</Text>
         </Pressable>
       )}
       {!!error && <Text style={[st.err, { color: c.onAccent }]}>{error}</Text>}
@@ -306,6 +368,10 @@ const st = StyleSheet.create({
   offerNote: { fontFamily: font.body, fontSize: 13, opacity: 0.85 },
   offerPrice: { fontFamily: font.display, fontSize: 26 },
   offerPer: { fontFamily: font.body, fontSize: 13 },
+  payRow: { flexDirection: "row", gap: 10, marginTop: 4 },
+  payBtn: { flex: 1, borderRadius: 999, paddingVertical: 14, alignItems: "center" },
+  payText: { fontFamily: font.heavy, fontSize: 15 },
+  mpesaBox: { borderWidth: 1.5, borderRadius: 18, padding: 14, gap: 10, marginTop: 4 },
   google: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderWidth: 1.5, borderRadius: 999, paddingVertical: 14 },
   googleText: { fontFamily: font.semibold, fontSize: 16 },
   or: { fontFamily: font.body, fontSize: 13.5, textAlign: "center" },

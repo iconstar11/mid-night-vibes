@@ -46,9 +46,9 @@ export const templates = {
       html: layout(
         "Premium is active",
         `<p style="font-size:16px;line-height:1.5">Hi ${escapeHtml(name)}, thanks for upgrading. Premium is now unlocked on your account.</p>
-<p style="font-size:16px;line-height:1.5">Your payment receipt comes separately from Stripe.</p>`,
+<p style="font-size:16px;line-height:1.5">Your payment receipt comes separately from Paystack.</p>`,
       ),
-      text: `Hi ${name}, thanks for upgrading. Premium is now unlocked on your account.\n\nYour payment receipt comes separately from Stripe.\n\nQuestions? Just reply to this email.\n— Midnight Vibes`,
+      text: `Hi ${name}, thanks for upgrading. Premium is now unlocked on your account.\n\nYour payment receipt comes separately from Paystack.\n\nQuestions? Just reply to this email.\n— Midnight Vibes`,
     };
   },
 } satisfies Record<string, (data: Record<string, unknown>) => Rendered>;

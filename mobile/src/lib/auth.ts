@@ -32,11 +32,12 @@ type AuthState = {
   nextAt: string | null; // date (YYYY-MM-DD) the oldest counted AI mood drops out of the window
   premiumUntil: string | null;
   product: "monthly" | "yearly" | "pass" | null;
-  canManage: boolean; // has a Stripe customer (portal: receipts, cancel)
+  canManage: boolean; // has a card subscription (Paystack page: update card, cancel)
+  renews: boolean; // that subscription will charge again
 };
 
 export const useAuth = create<AuthState>(() => ({
-  ready: false, user: null, email: null, name: null, plan: "guest", used: 0, limit: 0, windowDays: 1, nextAt: null, premiumUntil: null, product: null, canManage: false,
+  ready: false, user: null, email: null, name: null, plan: "guest", used: 0, limit: 0, windowDays: 1, nextAt: null, premiumUntil: null, product: null, canManage: false, renews: false,
 }));
 
 /** Reload who's signed in, their plan and today's AI usage. */
@@ -64,6 +65,7 @@ export async function refreshAccount() {
     premiumUntil: row?.premium_until ?? null,
     product: row?.product ?? null,
     canManage: !!row?.can_manage,
+    renews: !!row?.renews,
   });
   useGame.setState({ premium: useAuth.getState().plan === "premium" });
   if (base.email) {

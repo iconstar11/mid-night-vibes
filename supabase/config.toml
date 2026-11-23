@@ -25,8 +25,8 @@ verify_jwt = true
 [functions.billing]
 verify_jwt = true
 
-[functions.stripe-webhook]
-# Stripe can't send a Supabase JWT; the function verifies the Stripe-Signature header instead
+[functions.paystack-webhook]
+# Paystack can't send a Supabase JWT; the function verifies the Paystack-Signature header instead
 verify_jwt = false
 
 [functions.weekly-report]
