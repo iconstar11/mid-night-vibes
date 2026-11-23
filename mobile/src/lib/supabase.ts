@@ -9,6 +9,18 @@ const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 export const supabaseReady = !!(url && anonKey);
 
+/** Is a sign-in provider (e.g. "google") switched on in the Supabase project? */
+export async function providerEnabled(name: string): Promise<boolean> {
+  if (!supabaseReady) return false;
+  try {
+    const r = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: anonKey! } });
+    const j = await r.json();
+    return !!j?.external?.[name];
+  } catch {
+    return false;
+  }
+}
+
 export const supabase: SupabaseClient | null = supabaseReady
   ? createClient(url!, anonKey!, {
       auth: {
@@ -17,6 +29,8 @@ export const supabase: SupabaseClient | null = supabaseReady
         autoRefreshToken: true,
         persistSession: typeof window !== "undefined" || Platform.OS !== "web",
         detectSessionInUrl: Platform.OS === "web",
+        // PKCE: Google sign-in returns a one-time code (works for web redirects and app deep links)
+        flowType: "pkce",
       },
     })
   : null;

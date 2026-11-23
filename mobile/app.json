@@ -27,7 +27,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "scheme": "midnightvibes",
     "backgroundColor": "#1F0A14",

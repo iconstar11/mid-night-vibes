@@ -1,12 +1,14 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { AdultOnly } from "@/components/Guard";
 import { Btn, Fine, Label, RoundBtn, Screen, Seg } from "@/components/ui";
-import { PLAN_NAMES, refreshAccount, signIn, signOut, signUp, useAuth } from "@/lib/auth";
+import { PLAN_NAMES, refreshAccount, signIn, signInWithGoogle, signOut, signUp, useAuth } from "@/lib/auth";
+import { OFFERS, buy, manageBilling, waitForPremium, type Product } from "@/lib/billing";
 import { ensureSession, supabaseReady } from "@/lib/supabase";
 import { font, useColors } from "@/theme/tokens";
 
@@ -17,10 +19,16 @@ export default function Account() {
 function AccountScreen() {
   const c = useColors();
   const { ready, email, name, plan } = useAuth();
+  const { paid } = useLocalSearchParams<{ paid?: string }>();
+  const [paying, setPaying] = useState<"waiting" | "done" | "slow" | null>(paid ? "waiting" : null);
 
   useEffect(() => {
     ensureSession().catch(() => null).then(refreshAccount);
   }, []);
+  // Back from Stripe: the webhook switches Premium on within a few seconds
+  useEffect(() => {
+    if (paid) waitForPremium().then((ok) => setPaying(ok ? "done" : "slow"));
+  }, [paid]);
 
   return (
     <Screen scroll>
@@ -41,8 +49,9 @@ function AccountScreen() {
           </Text>
           {email && <Fine style={{ textAlign: "left", marginTop: -12 }}>{email}</Fine>}
 
+          {paying && <PaidNote state={paying} />}
           <Usage />
-          {plan !== "premium" && <Premium />}
+          {plan === "premium" ? <PremiumActive /> : <Premium signedIn={!!email} />}
           {email ? <Btn kind="quiet" label="Sign out" onPress={signOut} /> : <AuthForm />}
         </Animated.View>
       )}
@@ -80,20 +89,91 @@ function Usage() {
   );
 }
 
-/** Premium teaser: the place payments will plug into. */
-function Premium() {
+function PaidNote({ state }: { state: "waiting" | "done" | "slow" }) {
   const c = useColors();
-  const perks = ["100 AI moods a day", "Spicy AI packs and themed wheels", "Bigger live rooms", "No limits on saved groups"];
+  const text =
+    state === "waiting" ? "Payment received. Switching Premium on…"
+    : state === "done" ? "You're on Premium. Enjoy!"
+    : "Payment received. Premium can take a minute to switch on: reopen this page shortly.";
+  return (
+    <View style={[st.card, { backgroundColor: c.surface, borderColor: c.brass }]}>
+      <Text style={[st.meterLabel, { color: c.ink }]}><Text style={{ color: c.brass }}>✦</Text> {text}</Text>
+    </View>
+  );
+}
+
+const PERKS = ["100 AI moods a day", "AI cards and wheels for any mood", "Every heat level, every group", "Supports a small indie app"];
+
+/** Premium offers: Stripe Checkout on the web. Guests create a free account first, so Premium stays with them. */
+function Premium({ signedIn }: { signedIn: boolean }) {
+  const c = useColors();
+  const [busy, setBusy] = useState<Product | null>(null);
+  const [error, setError] = useState("");
+  async function pick(p: Product) {
+    if (busy || !signedIn) return;
+    setBusy(p); setError("");
+    try { await buy(p); } catch (e) { setError((e as Error).message); }
+    setBusy(null);
+  }
   return (
     <LinearGradient colors={[c.wine, c.plum]} start={{ x: 0, y: 0 }} end={{ x: 0.7, y: 1 }} style={st.premium}>
       <Text style={[st.premiumKicker, { color: c.brass }]}>MIDNIGHT VIBES PREMIUM</Text>
       <Text style={[st.premiumTitle, { color: c.onAccent }]}>More moods, more heat.</Text>
-      {perks.map((p) => (
+      {PERKS.map((p) => (
         <Text key={p} style={[st.perk, { color: c.onAccent }]}><Text style={{ color: c.brass }}>✦  </Text>{p}</Text>
       ))}
-      <View style={[st.soon, { borderColor: c.onAccent + "55" }]}>
-        <Text style={[st.soonText, { color: c.onAccent }]}>Coming soon</Text>
+      <View style={{ gap: 10, marginTop: 10 }}>
+        {OFFERS.map((o) => {
+          const best = o.id === "yearly";
+          return (
+            <Pressable key={o.id} onPress={() => pick(o.id)} disabled={!signedIn || !!busy} accessibilityRole="button"
+              accessibilityLabel={`${o.title}, ${o.price} per ${o.per}`}
+              style={({ pressed }) => [st.offer, {
+                backgroundColor: best ? c.onAccent : "transparent",
+                borderColor: best ? c.onAccent : c.onAccent + "66",
+                opacity: signedIn ? 1 : 0.55,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[st.offerTitle, { color: best ? c.wine : c.onAccent }]}>{o.title}{best ? "  ·  Best value" : ""}</Text>
+                <Text style={[st.offerNote, { color: best ? c.muted : c.onAccent }]}>{o.note}</Text>
+              </View>
+              <Text style={[st.offerPrice, { color: best ? c.wine : c.onAccent }]}>
+                {busy === o.id ? "…" : o.price}<Text style={st.offerPer}> / {o.per}</Text>
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
+      {!signedIn && (
+        <Text style={[st.perk, { color: c.onAccent, fontSize: 14, opacity: 0.85 }]}>
+          Create a free account below first, so Premium stays with you on every device.
+        </Text>
+      )}
+      {!!error && <Text style={[st.err, { color: c.onAccent }]}>{error}</Text>}
+      <Text style={[st.perk, { color: c.onAccent, fontSize: 12.5, opacity: 0.7 }]}>Secure payment by Stripe. Prices in US dollars.</Text>
+    </LinearGradient>
+  );
+}
+
+function PremiumActive() {
+  const c = useColors();
+  const { premiumUntil, product, canManage } = useAuth();
+  const [error, setError] = useState("");
+  const until = premiumUntil ? new Date(premiumUntil).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) : null;
+  const label = product === "pass" ? "Party pass" : product === "yearly" ? "Yearly plan" : product === "monthly" ? "Monthly plan" : "Premium";
+  return (
+    <LinearGradient colors={[c.wine, c.plum]} start={{ x: 0, y: 0 }} end={{ x: 0.7, y: 1 }} style={st.premium}>
+      <Text style={[st.premiumKicker, { color: c.brass }]}>YOU'RE ON PREMIUM</Text>
+      <Text style={[st.premiumTitle, { color: c.onAccent }]}>{label}</Text>
+      {until && <Text style={[st.perk, { color: c.onAccent }]}>{product === "pass" ? "Ends" : "Renews or ends"} {until}</Text>}
+      {canManage && (
+        <Pressable onPress={() => manageBilling().catch((e) => setError((e as Error).message))} accessibilityRole="button"
+          style={[st.soon, { borderColor: c.onAccent + "55" }]}>
+          <Text style={[st.soonText, { color: c.onAccent }]}>Manage billing and receipts</Text>
+        </Pressable>
+      )}
+      {!!error && <Text style={[st.err, { color: c.onAccent }]}>{error}</Text>}
     </LinearGradient>
   );
 }
@@ -129,6 +209,18 @@ function AuthForm() {
 
   return (
     <View style={{ gap: 12 }}>
+      <Pressable onPress={async () => { setError(""); const r = await signInWithGoogle(); if (!r.ok) setError(r.error); }}
+        accessibilityRole="button"
+        style={({ pressed }) => [st.google, { backgroundColor: c.surface, borderColor: c.line, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
+        <Svg width={20} height={20} viewBox="0 0 48 48">
+          <Path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.2l7.8 6C12.4 13.4 17.7 9.5 24 9.5z" />
+          <Path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z" />
+          <Path fill="#FBBC05" d="M10.5 28.8c-.5-1.5-.8-3.1-.8-4.8s.3-3.3.8-4.8l-7.8-6C1 16.5 0 20.1 0 24s1 7.5 2.7 10.8l7.8-6z" />
+          <Path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.8 6C6.6 42.6 14.6 48 24 48z" />
+        </Svg>
+        <Text style={[st.googleText, { color: c.ink }]}>Continue with Google</Text>
+      </Pressable>
+      <Text style={[st.or, { color: c.muted }]}>or use email</Text>
       <Seg<"up" | "in"> value={mode} onChange={(m) => { setMode(m); setError(""); }} accent={c.rose} options={[["up", "Create account"], ["in", "Sign in"]]} />
       {mode === "up" && (
         <View>
@@ -174,4 +266,12 @@ const st = StyleSheet.create({
   soonText: { fontFamily: font.semibold, fontSize: 15, opacity: 0.85 },
   input: { fontFamily: font.body, fontSize: 17, paddingVertical: 15, paddingHorizontal: 18, borderRadius: 16, borderWidth: 1.5 },
   err: { fontFamily: font.semibold, fontSize: 15 },
+  offer: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1.5, borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16 },
+  offerTitle: { fontFamily: font.heavy, fontSize: 15.5 },
+  offerNote: { fontFamily: font.body, fontSize: 13, opacity: 0.85 },
+  offerPrice: { fontFamily: font.display, fontSize: 26 },
+  offerPer: { fontFamily: font.body, fontSize: 13 },
+  google: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderWidth: 1.5, borderRadius: 999, paddingVertical: 14 },
+  googleText: { fontFamily: font.semibold, fontSize: 16 },
+  or: { fontFamily: font.body, fontSize: 13.5, textAlign: "center" },
 });
