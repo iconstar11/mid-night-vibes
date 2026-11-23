@@ -7,7 +7,7 @@ import { create } from "zustand";
 
 import { cleanProps, type Value } from "@/game/privacy";
 
-import { supabase } from "./supabase";
+import { ensureSession, supabase } from "./supabase";
 
 export type EventName =
   | "session_start" | "game_start" | "card_shown" | "card_skip" | "card_done" | "card_star"
@@ -55,8 +55,9 @@ async function flush() {
   if (!supabase || !queue.length) return;
   const batch = queue.splice(0, queue.length);
   try {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) { queue.unshift(...batch); return; } // not signed in (even as a guest) yet: try later
+    // New visitors have no session until they use AI, rooms or Account: start their guest session now
+    const session = await ensureSession();
+    if (!session) { queue.unshift(...batch); return; }
     const { error } = await supabase.from("events").insert(batch);
     if (error && queue.length < 200) queue.unshift(...batch); // keep for the next try, within reason
   } catch {
