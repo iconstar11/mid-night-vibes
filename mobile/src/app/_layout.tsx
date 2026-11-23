@@ -1,5 +1,3 @@
-import { Figtree_400Regular, Figtree_600SemiBold, Figtree_800ExtraBold } from "@expo-google-fonts/figtree";
-import { InstrumentSerif_400Regular, InstrumentSerif_400Regular_Italic } from "@expo-google-fonts/instrument-serif";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -11,7 +9,14 @@ import { useColors } from "@/theme/tokens";
 
 export default function RootLayout() {
   const c = useColors();
-  const [loaded] = useFonts({ InstrumentSerif_400Regular, InstrumentSerif_400Regular_Italic, Figtree_400Regular, Figtree_600SemiBold, Figtree_800ExtraBold });
+  // Fonts live in assets/fonts, not node_modules: Cloudflare Pages drops any uploaded folder named node_modules
+  const [loaded] = useFonts({
+    InstrumentSerif_400Regular: require("../../assets/fonts/InstrumentSerif_400Regular.ttf"),
+    InstrumentSerif_400Regular_Italic: require("../../assets/fonts/InstrumentSerif_400Regular_Italic.ttf"),
+    Figtree_400Regular: require("../../assets/fonts/Figtree_400Regular.ttf"),
+    Figtree_600SemiBold: require("../../assets/fonts/Figtree_600SemiBold.ttf"),
+    Figtree_800ExtraBold: require("../../assets/fonts/Figtree_800ExtraBold.ttf"),
+  });
   if (!loaded) return <View style={{ flex: 1, backgroundColor: c.bg }} />;
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.bg }}>
