@@ -12,11 +12,11 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { GROUPS, HEAT, PAIRS, SYSTEM, TASKS, type TaskName } from "../_shared/prompt.ts";
 
-// Daily AI limits per plan live in the plan_limits table (guest / free / premium)
+// AI limits per plan live in the plan_limits table (guest / free / premium): ai_moods_per_day moods per window_days
 const CALLS_PER_MOOD = 4; // hidden cost guard: a mood makes ~2-3 calls (cards, wheel, top-ups)
 const LIMIT_MESSAGE: Record<string, string> = {
-  guest: "That's today's free AI moods. Create a free account for more.",
-  free: "That's today's AI moods on the free plan. Premium gets many more.",
+  guest: "Sign in to customize with AI.",
+  free: "You've used your free AI mood. It's back in 2 days, or go Premium for 100 a day.",
   premium: "That's today's AI moods. They're back tomorrow.",
 };
 const CACHE_VARIANTS = 3; // after this many results for the same mood, serve from cache
@@ -73,26 +73,30 @@ Deno.serve(async (req) => {
     return send(400, { error: "The request wasn't readable." });
   }
 
+  // Limit for this user's plan: `limit` AI moods per `window` days (guests get none: they sign in first)
+  const { data: plan } = await admin.rpc("current_plan", { uid });
+  const tier = typeof plan === "string" ? plan : "guest";
+  const { data: lim } = await admin.from("plan_limits").select("ai_moods_per_day,window_days").eq("plan", tier).maybeSingle();
+  const limit = lim?.ai_moods_per_day ?? 0;
+  const window = lim?.window_days ?? 1;
+  if (limit <= 0) return send(429, { error: LIMIT_MESSAGE[tier] ?? LIMIT_MESSAGE.guest, limit: true, plan: tier, signin: tier === "guest" });
+
+  // Count it (moods over the window; raw calls per day are capped too), cached or not
+  const { data: usage, error: usageErr } = await admin.rpc("bump_ai_usage", { uid, new_mood: newMood });
+  if (usageErr) console.error("usage:", usageErr.message);
+  const row = Array.isArray(usage) ? usage[0] : usage;
+  const { data: inWindow } = await admin.rpc("ai_moods_in_window", { uid, days: window });
+  const moods = typeof inWindow === "number" ? inWindow : row?.moods ?? 0;
+  if (moods > limit || (row && row.calls > limit * CALLS_PER_MOOD)) {
+    return send(429, { error: LIMIT_MESSAGE[tier] ?? LIMIT_MESSAGE.guest, limit: true, plan: tier });
+  }
+
   // Popular moods: reuse one of a few saved results
   const key = [task, vibe.toLowerCase().replace(/\s+/g, " "), heat, audience].join("|");
   const { data: cached } = await admin.from("ai_cache").select("variant,payload").eq("key", key);
   if (cached && cached.length >= CACHE_VARIANTS) {
     const pick = cached[Math.floor(Math.random() * cached.length)];
     return send(200, pick.payload);
-  }
-
-  // Daily limit for this user's plan (counted in moods; raw calls are capped too)
-  const [{ data: plan }, { data: usage, error: usageErr }] = await Promise.all([
-    admin.rpc("current_plan", { uid }),
-    admin.rpc("bump_ai_usage", { uid, new_mood: newMood }),
-  ]);
-  if (usageErr) console.error("usage:", usageErr.message);
-  const tier = typeof plan === "string" ? plan : "guest";
-  const { data: lim } = await admin.from("plan_limits").select("ai_moods_per_day").eq("plan", tier).maybeSingle();
-  const limit = lim?.ai_moods_per_day ?? 3;
-  const row = Array.isArray(usage) ? usage[0] : usage;
-  if (row && (row.moods > limit || row.calls > Math.max(limit, 1) * CALLS_PER_MOOD)) {
-    return send(429, { error: LIMIT_MESSAGE[tier] ?? LIMIT_MESSAGE.guest, limit: true, plan: tier });
   }
 
   const t = TASKS[task];

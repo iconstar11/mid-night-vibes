@@ -1,15 +1,20 @@
+import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AdultOnly } from "@/components/Guard";
 import { MoodBar, MoodSheet } from "@/components/Mood";
 import { Sheet } from "@/components/Sheet";
+import { Timer } from "@/components/Timer";
 import { Wheel, type WheelHandle } from "@/components/Wheel";
 import { Fine, GameBar, Screen } from "@/components/ui";
 import { WHEELS } from "@/game/content";
 import { fillTarget } from "@/game/match";
+import { durationOf } from "@/game/timer";
 import type { Wedge } from "@/game/types";
 import { planSpin } from "@/game/wheel";
+import { takeGuestTurn } from "@/lib/guestTurns";
+import { savePending } from "@/lib/pending";
 import { host } from "@/lib/room";
 import { current, nextUp, useGame } from "@/state/store";
 import { font, useColors } from "@/theme/tokens";
@@ -46,7 +51,15 @@ function Game() {
 
   async function spin(power: number, dir: 1 | -1, windup: boolean) {
     if (spinning || !wheel.current) return;
-    setSpinning(true); setHi(-1);
+    setSpinning(true);
+    // Guests get a few free spins; after that, sign in and carry on from here
+    if (!(await takeGuestTurn())) {
+      setSpinning(false);
+      await savePending("turns", "/wheel");
+      router.push("/account");
+      return;
+    }
+    setHi(-1);
     const plan = planSpin(shown.length, power, dir, windup);
     const start = wheel.current.rotation();
     host.spin(plan, start); // viewers replay the same spin from the same angle
@@ -77,6 +90,7 @@ function Game() {
         <Text style={[st.who, { color: c.onAccent }]}>{me}, this one's yours</Text>
         <Text style={[st.kind, { color: c.brass }]}>{(result?.ai ? "✦ " : "") + (result?.label ?? "")}</Text>
         <Text style={[st.text, { color: c.onAccent }]}>{result?.text}</Text>
+        {result && durationOf(result.text) && <View style={{ marginBottom: 14 }}><Timer key={result.text} seconds={durationOf(result.text)!} /></View>}
         <View style={st.row}>
           <Pressable onPress={() => { close(); setTimeout(() => spin(0.4, 1, true), 240); }} style={[st.skip, { borderColor: c.onAccent + "66" }]} accessibilityRole="button">
             <Text style={[st.skipText, { color: c.onAccent }]}>Skip</Text>

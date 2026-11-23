@@ -1,6 +1,6 @@
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Svg, { Circle, G, Path } from "react-native-svg";
@@ -40,6 +40,9 @@ function Games() {
   const [guide, setGuide] = useState<null | "ios-guide" | "safari-needed">(null);
   const { canInstall, install } = useInstall();
   const [shareOpen, setShareOpen] = useState(false);
+  // Back from signing in to start a live game: open the share sheet again
+  const { share } = useLocalSearchParams<{ share?: string }>();
+  useEffect(() => { if (share === "1") setShareOpen(true); }, [share]);
   const email = useAuth((a) => a.email);
   const name = useAuth((a) => a.name);
   useFocusEffect(useCallback(() => { host.screen("home"); }, []));

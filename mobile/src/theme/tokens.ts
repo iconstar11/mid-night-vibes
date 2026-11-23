@@ -1,5 +1,7 @@
 import { useColorScheme } from "react-native";
 
+import { useProfile } from "@/lib/profile";
+
 // Same palette as the web version (legacy/index.html :root tokens)
 const light = {
   bg: "#F7E6E4", surface: "#FFF5F3", ink: "#3B0D1C", muted: "#8A5A66",
@@ -21,8 +23,11 @@ export const font = {
   heavy: "Figtree_800ExtraBold",
 };
 
+/** The palette: the signed-in user's Appearance setting, otherwise the device's light/dark mode. */
 export function useColors(): Colors {
-  return useColorScheme() === "dark" ? dark : light;
+  const device = useColorScheme();
+  const theme = useProfile((p) => p.theme);
+  return (theme === "system" ? device : theme) === "dark" ? dark : light;
 }
 
 /** Darken/blend helper for gradients: mix(a, b, t) with hex colours. */

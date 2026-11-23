@@ -1,7 +1,8 @@
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { View } from "react-native";
+import { useEffect } from "react";
+import { Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -9,6 +10,9 @@ import { useColors } from "@/theme/tokens";
 
 export default function RootLayout() {
   const c = useColors();
+  const darkUi = c.bg === "#1F0A14";
+  // Web: the page behind the app follows the chosen appearance too (the HTML shell only knows the device's)
+  useEffect(() => { if (Platform.OS === "web") document.body.style.background = c.bg; }, [c.bg]);
   // Fonts live in assets/fonts, not node_modules: Cloudflare Pages drops any uploaded folder named node_modules
   const [loaded] = useFonts({
     InstrumentSerif_400Regular: require("../../assets/fonts/InstrumentSerif_400Regular.ttf"),
@@ -21,7 +25,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.bg }}>
       <SafeAreaProvider>
-        <StatusBar style="auto" />
+        <StatusBar style={darkUi ? "light" : "dark"} />
         <Stack screenOptions={{ headerShown: false, animation: "fade", contentStyle: { backgroundColor: c.bg } }} />
       </SafeAreaProvider>
     </GestureHandlerRootView>

@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { Platform, Share, StyleSheet, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
+import { router } from "expo-router";
+
+import { useAuth } from "@/lib/auth";
+import { savePending } from "@/lib/pending";
 import { roomLink, startHosting, stopHosting, useRoom } from "@/lib/room";
 import { font, useColors } from "@/theme/tokens";
 import { Sheet } from "./Sheet";
@@ -12,10 +16,11 @@ export function ShareRoom({ open, onClose }: { open: boolean; onClose: () => voi
   const c = useColors();
   const { code, status, error, viewers } = useRoom();
   const [copied, setCopied] = useState(false);
+  const email = useAuth((a) => a.email); // live games need an account
 
   useEffect(() => {
-    if (open && !code) startHosting().catch(() => {});
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (open && !code && email) startHosting().catch(() => {});
+  }, [open, email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const link = code ? roomLink(code) : "";
   async function share() {
@@ -31,6 +36,13 @@ export function ShareRoom({ open, onClose }: { open: boolean; onClose: () => voi
     <Sheet open={open} onClose={onClose} tone="light">
       <Text style={[st.h, { color: c.ink }]} accessibilityRole="header">Play together</Text>
       <Fine style={{ textAlign: "left" }}>Friends scan this or open the link to follow your game live on their phones. Only you control it.</Fine>
+
+      {!email && (
+        <>
+          <Fine style={{ textAlign: "left" }}>Live games need a free account, for you and the people joining. You'll come straight back here after signing in.</Fine>
+          <Btn label="Sign in to start a live game" onPress={async () => { onClose(); await savePending("host", "/home?share=1"); router.push("/account"); }} />
+        </>
+      )}
 
       {status === "connecting" && <Fine>Opening a room…</Fine>}
       {status === "error" && <Text style={[st.err, { color: c.rose }]}>{error}</Text>}

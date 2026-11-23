@@ -6,10 +6,14 @@ import { localMood } from "@/game/mood";
 import { WHEELS } from "@/game/content";
 import type { Card, CardType, GroupId, Heat, PairId, Player, Sex, Wedge } from "@/game/types";
 import { AiLimitError, askAI } from "@/lib/ai";
+import { supabase } from "@/lib/supabase";
 
 export const PAIR_SEX: Record<PairId, [Sex, Sex]> = { mf: ["m", "f"], ff: ["f", "f"], mm: ["m", "m"], any: [null, null] };
 
 export type AiState = "off" | "loading" | "ready" | "local";
+
+/** The game setup, saved before a guest signs in so it can be rebuilt after a page reload. */
+export type GameSnapshot = { adult: boolean; group: GroupId; pair: PairId; players: Player[]; heat: Heat; turn: number; mood: string };
 
 type State = {
   adult: boolean;
@@ -34,6 +38,9 @@ type State = {
   /** Draw the next card: AI cards for the mood first, then the built-in deck. {target} is filled. */
   draw(type: CardType): Card;
   wedges(): Wedge[];
+  snapshot(): GameSnapshot;
+  /** Put a saved game back (after sign-in). Leaves an in-memory game alone if one is already going. */
+  restore(s: GameSnapshot): void;
 };
 
 let deck = new Draw("couple", 1);
@@ -45,20 +52,30 @@ export const current = (s: Pick<State, "players" | "turn">) => s.players[s.turn 
 export const nextUp = (s: Pick<State, "players" | "turn">) => s.players[(s.turn + 1) % s.players.length];
 
 export const useGame = create<State>((set, get) => {
-  async function loadMood() {
+  /** `isNew`: the player typed or picked a new mood, so it counts toward their AI limit (heat or player changes don't). */
+  async function loadMood(isNew = false) {
     const id = ++aiReq;
     const { mood, heat, group, pair, players } = get();
     set({ ai: { state: mood ? "loading" : "off", tod: null, wheel: null, note: "", limited: false } });
     if (!mood) return;
+    // Guests don't get AI: the mood still steers the built-in cards
+    const user = supabase ? (await supabase.auth.getSession()).data.session?.user : null;
+    if (id !== aiReq) return;
+    if (supabase && (!user || user.is_anonymous)) {
+      const local = localMood(mood, group, heat);
+      set({ ai: { state: "local", tod: local, wheel: null, limited: true, note: "Sign in to customize with AI. " + (local ? "Using built-in cards that match the mood." : "Using the built-in deck for now.") } });
+      return;
+    }
     const req = { vibe: mood, heat, group, pair, players: players.length };
     // In parallel for speed. Only the cards call counts as the new mood; the server also refuses the wheel call past the limit.
-    const [t, w] = await Promise.allSettled([askAI({ ...req, game: "tod", newMood: true }), askAI({ ...req, game: "wheel" })]);
+    const [t, w] = await Promise.allSettled([askAI({ ...req, game: "tod", newMood: isNew }), askAI({ ...req, game: "wheel" })]);
     if (id !== aiReq) return;
+    const limited = t.status === "rejected" && t.reason instanceof AiLimitError;
     const tod = t.status === "fulfilled" && t.value.truths ? { truth: shuffle(t.value.truths), dare: shuffle(t.value.dares!) } : null;
-    const wheel = w.status === "fulfilled" && w.value.wedges ? w.value.wedges.map((x): Wedge => [x.label, [x.text]]) : null;
+    // Past the limit, don't keep an AI wheel that slipped through before the cards call was counted
+    const wheel = !limited && w.status === "fulfilled" && w.value.wedges ? w.value.wedges.map((x): Wedge => [x.label, [x.text]]) : null;
     const ok = !!(tod || wheel);
     const why = t.status === "rejected" ? (t.reason as Error)?.message ?? "" : "";
-    const limited = t.status === "rejected" && t.reason instanceof AiLimitError;
     set({
       ai: {
         limited,
@@ -97,6 +114,18 @@ export const useGame = create<State>((set, get) => {
     ai: { state: "off", tod: null, wheel: null, note: "", limited: false },
 
     confirmAdult: () => set({ adult: true }),
+    snapshot: () => {
+      const { adult, group, pair, players, heat, turn, mood } = get();
+      return { adult, group, pair, players, heat, turn, mood };
+    },
+    restore: (s) => {
+      const g = get();
+      if (s.adult && !g.adult) set({ adult: true });
+      if (g.players.length >= 2 || s.players.length < 2) return;
+      set({ group: s.group, pair: s.pair, players: s.players, roster: s.group === "couple" ? g.roster : s.players, heat: s.heat, turn: s.turn, mood: s.mood });
+      deck = new Draw(s.group, s.heat);
+      loadMood();
+    },
     setGroup: (group) => {
       const prev = get().group;
       let roster = get().roster;
@@ -123,7 +152,7 @@ export const useGame = create<State>((set, get) => {
       deck = new Draw(get().group, heat);
       if (get().mood) {
         clearTimeout(heatTimer);
-        heatTimer = setTimeout(loadMood, 500);
+        heatTimer = setTimeout(() => loadMood(), 500);
       }
     },
     nextTurn: () => set((s) => ({ turn: s.turn + 1 })),
@@ -131,7 +160,7 @@ export const useGame = create<State>((set, get) => {
       const mood = m.trim().slice(0, 200);
       if (mood === get().mood) return;
       set({ mood });
-      loadMood();
+      loadMood(true);
     },
     draw: (type) => {
       const s = get();

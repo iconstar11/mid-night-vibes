@@ -1,11 +1,15 @@
 // Accounts: guests play with an anonymous Supabase user; signing up gives them a real account.
-// Plans: guest / free / premium, with daily AI mood limits from the plan_limits table.
+// Plans: guest (no AI) / free / premium, with AI mood limits per window of days from the plan_limits table.
 import type { User } from "@supabase/supabase-js";
+import { router } from "expo-router";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
 import { create } from "zustand";
 
+import { useGame } from "@/state/store";
+import { takePending } from "./pending";
+import { clearProfile, loadProfile } from "./profile";
 import { stopHosting, useRoom } from "./room";
 import { ensureSession, providerEnabled, supabase } from "./supabase";
 
@@ -17,15 +21,17 @@ type AuthState = {
   email: string | null;
   name: string | null;
   plan: Plan;
-  used: number; // AI moods today
-  limit: number; // AI moods per day on this plan
+  used: number; // AI moods used in the current window
+  limit: number; // AI moods per window on this plan
+  windowDays: number; // the limit covers this many days (free: 2)
+  nextAt: string | null; // date (YYYY-MM-DD) the oldest counted AI mood drops out of the window
   premiumUntil: string | null;
   product: "monthly" | "yearly" | "pass" | null;
   canManage: boolean; // has a Stripe customer (portal: receipts, cancel)
 };
 
 export const useAuth = create<AuthState>(() => ({
-  ready: false, user: null, email: null, name: null, plan: "guest", used: 0, limit: 3, premiumUntil: null, product: null, canManage: false,
+  ready: false, user: null, email: null, name: null, plan: "guest", used: 0, limit: 0, windowDays: 1, nextAt: null, premiumUntil: null, product: null, canManage: false,
 }));
 
 /** Reload who's signed in, their plan and today's AI usage. */
@@ -46,11 +52,35 @@ export async function refreshAccount() {
     ready: true,
     plan: (row?.plan as Plan) ?? (user.is_anonymous ? "guest" : "free"),
     used: row?.used ?? 0,
-    limit: row?.day_limit ?? 3,
+    limit: row?.day_limit ?? 0,
+    windowDays: row?.window_days ?? 1,
+    nextAt: row?.next_at ?? null,
     premiumUntil: row?.premium_until ?? null,
     product: row?.product ?? null,
     canManage: !!row?.can_manage,
   });
+  if (base.email) {
+    loadProfile(base.name).catch(() => null);
+    resumePending();
+  } else clearProfile();
+}
+
+let resuming = false;
+/** They were sent to sign in mid-game (or to join/host a room): put things back and take them there. */
+async function resumePending() {
+  if (resuming) return;
+  resuming = true;
+  try {
+    const p = await takePending();
+    if (!p) return;
+    const game = useGame.getState();
+    game.restore(p.game); // after a page reload (Google sign-in) memory is empty: rebuild the game
+    if (p.mood) game.setMood(p.mood);
+    const needsPlayers = p.path === "/tod" || p.path === "/wheel";
+    if (p.path !== "/account" && (!needsPlayers || useGame.getState().players.length >= 2)) router.replace(p.path as never);
+  } finally {
+    resuming = false;
+  }
 }
 
 if (supabase) {
@@ -140,4 +170,13 @@ export async function signInWithGoogle(): Promise<AuthResult> {
   return { ok: true };
 }
 
-export const PLAN_NAMES: Record<Plan, string> = { guest: "Guest", free: "Free account", premium: "Premium" };
+/** How many AI moods are left and how to describe the window: "today" or "every 2 days", plus when the next one frees up. */
+export function aiAllowance({ used, limit, windowDays, nextAt }: Pick<AuthState, "used" | "limit" | "windowDays" | "nextAt">) {
+  const left = Math.max(limit - used, 0);
+  const period = windowDays > 1 ? `every ${windowDays} days` : "today";
+  // nextAt is a plain date; read it as local midnight so the weekday doesn't shift
+  const next = nextAt && !left ? new Date(`${nextAt}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) : null;
+  return { left, period, next, unit: limit === 1 ? "AI mood" : "AI moods" };
+}
+
+export const PLAN_NAMES: Record<Plan, string> ={ guest: "Guest", free: "Free account", premium: "Premium" };

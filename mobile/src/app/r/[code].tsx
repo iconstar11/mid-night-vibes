@@ -9,6 +9,8 @@ import { CardFace, cardLabel, useCardMotion } from "@/components/TodCard";
 import { Wheel, type WheelHandle } from "@/components/Wheel";
 import { Btn, Fine, Screen, Title } from "@/components/ui";
 import { GROUPS } from "@/game/content";
+import { useAuth } from "@/lib/auth";
+import { savePending } from "@/lib/pending";
 import type { Card, Wedge } from "@/game/types";
 import { joinRoom, leaveRoom, onRoomEvent, useRoom, type Result, type RoomEvent, type Snapshot } from "@/lib/room";
 import { useGame } from "@/state/store";
@@ -19,8 +21,26 @@ export default function Viewer() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const adult = useGame((g) => g.adult);
   const [, bump] = useState(0);
+  const ready = useAuth((a) => a.ready);
+  const email = useAuth((a) => a.email);
+  const room = String(code ?? "").toUpperCase();
   if (!adult) return <GateView lead="You've been invited to a live game. Watch along as the host plays." onConfirm={() => bump(1)} />;
-  return <Live code={String(code ?? "").toUpperCase()} />;
+  if (!ready) return <Screen><Waiting text="One moment…" /></Screen>;
+  if (!email) return <SignInToJoin code={room} />;
+  return <Live code={room} />;
+}
+
+/** Live games need an account: sign in, then come straight back to this room. */
+function SignInToJoin({ code }: { code: string }) {
+  return (
+    <Screen>
+      <Title>Sign in to join this live game.</Title>
+      <Fine style={{ textAlign: "left" }}>Live games are for players with a free account. It takes a minute, and you'll come straight back to this room.</Fine>
+      <View style={{ marginTop: "auto", gap: 6 }}>
+        <Btn label="Sign in or create a free account" onPress={async () => { await savePending("room", `/r/${code}`); router.push("/account"); }} />
+      </View>
+    </Screen>
+  );
 }
 
 /** Run room events one after another, so a quick sequence of moves still animates in order. */

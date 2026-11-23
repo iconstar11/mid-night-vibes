@@ -1,15 +1,20 @@
 import * as Haptics from "expo-haptics";
 import { useEffect, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import Svg, { Circle, Rect } from "react-native-svg";
 
 import { AdultOnly } from "@/components/Guard";
 import { MoodBar, MoodSheet } from "@/components/Mood";
 import { CardFace, cardLabel, useCardMotion } from "@/components/TodCard";
+import { Timer } from "@/components/Timer";
+import { durationOf } from "@/game/timer";
 import { GameBar, Press, Screen } from "@/components/ui";
 import type { Card, CardType } from "@/game/types";
 import { to, wait } from "@/lib/anim";
+import { takeGuestTurn } from "@/lib/guestTurns";
+import { savePending } from "@/lib/pending";
 import { host } from "@/lib/room";
 import { current, nextUp, useGame } from "@/state/store";
 import { HEAT_NAMES, font, useColors } from "@/theme/tokens";
@@ -44,9 +49,19 @@ function Game() {
   useEffect(() => { host.screen("tod"); }, []);
   useEffect(() => { setCard(null); }, [heat]);
 
+  /** Guests get a few free cards; after that, sign in and carry on from this card. */
+  async function allowed() {
+    if (await takeGuestTurn()) return true;
+    await savePending("turns", "/tod");
+    router.push("/account");
+    return false;
+  }
+
   async function reveal(type: CardType) {
     if (busy) return;
-    setBusy(true); tap();
+    setBusy(true);
+    if (!(await allowed())) { setBusy(false); return; }
+    tap();
     const drawn = draw(type);
     host.card(drawn, false);
     await motion.flip(() => setCard(drawn));
@@ -55,7 +70,9 @@ function Game() {
 
   async function random() {
     if (busy) return;
-    setBusy(true); tap();
+    setBusy(true);
+    if (!(await allowed())) { setBusy(false); return; }
+    tap();
     const type: CardType = Math.random() < 0.5 ? "truth" : "dare";
     const drawn = draw(type);
     host.card(drawn, true); // viewers run the same shuffle and land on the same card
@@ -88,6 +105,7 @@ function Game() {
         <GameBar game="Truth or Dare" who={`${me}'s turn`} />
         <MoodBar onPress={() => setMoodOpen(true)} />
         <CardFace motion={motion} who={who} text={text} kind={kind} shuffling={!!shuffleText}>
+          {card && !shuffleText && durationOf(card.text) && <Timer key={card.text} seconds={durationOf(card.text)!} />}
           {card && !shuffleText && (
             <View style={st.onCard}>
               <Pressable onPress={() => reveal(card.type)} disabled={busy} style={[st.skip, { borderColor: c.onAccent + "66" }]} accessibilityRole="button">

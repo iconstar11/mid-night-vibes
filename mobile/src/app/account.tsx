@@ -6,9 +6,12 @@ import Svg, { Path } from "react-native-svg";
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { AdultOnly } from "@/components/Guard";
+import { ProfileSettings } from "@/components/ProfileSettings";
 import { Btn, Fine, Label, RoundBtn, Screen, Seg } from "@/components/ui";
-import { PLAN_NAMES, refreshAccount, signIn, signInWithGoogle, signOut, signUp, useAuth } from "@/lib/auth";
+import { PLAN_NAMES, aiAllowance, refreshAccount,signIn, signInWithGoogle, signOut, signUp, useAuth } from "@/lib/auth";
 import { OFFERS, buy, manageBilling, waitForPremium, type Product } from "@/lib/billing";
+import { peekPending, type PendingReason } from "@/lib/pending";
+import { useProfile } from "@/lib/profile";
 import { ensureSession, supabaseReady } from "@/lib/supabase";
 import { font, useColors } from "@/theme/tokens";
 
@@ -18,9 +21,13 @@ export default function Account() {
 
 function AccountScreen() {
   const c = useColors();
-  const { ready, email, name, plan } = useAuth();
+  const { ready, email, name: signUpName, plan } = useAuth();
+  const name = useProfile((p) => p.name) || signUpName;
   const { paid } = useLocalSearchParams<{ paid?: string }>();
   const [paying, setPaying] = useState<"waiting" | "done" | "slow" | null>(paid ? "waiting" : null);
+  // Sent here mid-game or from a live room: say why, and that they'll carry on afterwards
+  const [why, setWhy] = useState<PendingReason | null>(null);
+  useEffect(() => { if (!email) peekPending().then((p) => setWhy(p?.reason ?? null)); }, [email]);
 
   useEffect(() => {
     ensureSession().catch(() => null).then(refreshAccount);
@@ -43,26 +50,47 @@ function AccountScreen() {
       ) : !ready ? (
         <ActivityIndicator color={c.rose} style={{ marginTop: 40 }} />
       ) : (
-        <Animated.View entering={FadeIn.duration(250)} style={{ gap: 18 }}>
-          <Text style={[st.hello, { color: c.ink }]}>
-            {email ? <>Hi, <Text style={{ color: c.wine, fontFamily: font.displayItalic }}>{name || email.split("@")[0]}</Text></> : "Playing as a guest"}
-          </Text>
-          {email && <Fine style={{ textAlign: "left", marginTop: -12 }}>{email}</Fine>}
-
-          {paying && <PaidNote state={paying} />}
-          <Usage />
-          {plan === "premium" ? <PremiumActive /> : <Premium signedIn={!!email} />}
-          {email ? <Btn kind="quiet" label="Sign out" onPress={signOut} /> : <AuthForm />}
-        </Animated.View>
+        email ? (
+          // Signed in: usage, Premium and sign out (no sign-in form)
+          <Animated.View key="in" entering={FadeIn.duration(250)} style={{ gap: 18 }}>
+            <Text style={[st.hello, { color: c.ink }]}>
+              Hi, <Text style={{ color: c.wine, fontFamily: font.displayItalic }}>{name || email.split("@")[0]}</Text>
+            </Text>
+            <Fine style={{ textAlign: "left", marginTop: -12 }}>{email}</Fine>
+            {paying && <PaidNote state={paying} />}
+            <Usage />
+            <ProfileSettings />
+            {plan === "premium" ? <PremiumActive /> : <Premium />}
+            <Btn kind="quiet" label="Sign out" onPress={signOut} />
+          </Animated.View>
+        ) : (
+          // Guest: only signing in or creating an account (no usage, no payments)
+          <Animated.View key="out" entering={FadeIn.duration(250)} style={{ gap: 18 }}>
+            <Text style={[st.hello, { color: c.ink }]}>Playing as a guest</Text>
+            <Text style={[st.intro, { color: c.muted }]}>
+              {why ? WHY[why] : <>Sign in or create a free account to customize your games with <Text style={{ color: c.brass }}>✦</Text> AI.</>}
+            </Text>
+            <AuthForm />
+          </Animated.View>
+        )
       )}
     </Screen>
   );
 }
 
-/** Plan name and today's AI moods as a meter. */
+const WHY: Record<PendingReason, string> = {
+  turns: "Sign in or create a free account to keep playing. You'll pick up right where you left off.",
+  room: "Sign in or create a free account to join this live game. You'll go straight back to the room.",
+  host: "Sign in or create a free account to start a live game. You'll go straight back to sharing it.",
+  mood: "Sign in or create a free account to customize with AI. Your mood is saved and will be set for you.",
+};
+
+/** Plan name and AI moods used in the plan's window as a meter. */
 function Usage() {
   const c = useColors();
-  const { plan, used, limit } = useAuth();
+  const auth = useAuth();
+  const { plan, used, limit } = auth;
+  const { left, period, next, unit } = aiAllowance(auth);
   const pct = limit ? Math.min(used / limit, 1) : 1;
   const w = useSharedValue(0);
   useEffect(() => { w.value = withTiming(pct, { duration: 600 }); }, [pct]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -76,14 +104,15 @@ function Usage() {
         </View>
       </View>
       <View style={st.row}>
-        <Text style={[st.meterLabel, { color: c.muted }]}><Text style={{ color: c.brass }}>✦</Text> AI moods today</Text>
-        <Text style={[st.meterLabel, { color: c.ink }]}>{Math.min(used, limit)} of {limit}</Text>
+        <Text style={[st.meterLabel, { color: c.muted }]}><Text style={{ color: c.brass }}>✦</Text> {limit} {unit} {period}</Text>
+        <Text style={[st.meterLabel, { color: c.ink }]}>{left} left</Text>
       </View>
       <View style={[st.track, { backgroundColor: c.line }]}>
         <Animated.View style={[st.fill, { backgroundColor: pct >= 1 ? c.wine : c.rose }, fill]} />
       </View>
       <Fine style={{ textAlign: "left" }}>
-        {plan === "guest" ? "A free account gets more AI moods every day." : "Resets at midnight UTC. The built-in cards are always unlimited."}
+        {next ? `Your next AI mood is ready on ${next}. ` : ""}
+        {plan === "free" ? "Premium gets 100 AI moods a day. " : ""}The built-in cards are always unlimited.
       </Fine>
     </View>
   );
@@ -104,13 +133,13 @@ function PaidNote({ state }: { state: "waiting" | "done" | "slow" }) {
 
 const PERKS = ["100 AI moods a day", "AI cards and wheels for any mood", "Every heat level, every group", "Supports a small indie app"];
 
-/** Premium offers: Stripe Checkout on the web. Guests create a free account first, so Premium stays with them. */
-function Premium({ signedIn }: { signedIn: boolean }) {
+/** Premium offers: Stripe Checkout on the web. Only signed-in users see this, so Premium stays with their account. */
+function Premium() {
   const c = useColors();
   const [busy, setBusy] = useState<Product | null>(null);
   const [error, setError] = useState("");
   async function pick(p: Product) {
-    if (busy || !signedIn) return;
+    if (busy) return;
     setBusy(p); setError("");
     try { await buy(p); } catch (e) { setError((e as Error).message); }
     setBusy(null);
@@ -126,12 +155,11 @@ function Premium({ signedIn }: { signedIn: boolean }) {
         {OFFERS.map((o) => {
           const best = o.id === "yearly";
           return (
-            <Pressable key={o.id} onPress={() => pick(o.id)} disabled={!signedIn || !!busy} accessibilityRole="button"
+            <Pressable key={o.id} onPress={() => pick(o.id)} disabled={!!busy} accessibilityRole="button"
               accessibilityLabel={`${o.title}, ${o.price} per ${o.per}`}
               style={({ pressed }) => [st.offer, {
                 backgroundColor: best ? c.onAccent : "transparent",
                 borderColor: best ? c.onAccent : c.onAccent + "66",
-                opacity: signedIn ? 1 : 0.55,
                 transform: [{ scale: pressed ? 0.98 : 1 }],
               }]}>
               <View style={{ flex: 1 }}>
@@ -145,11 +173,6 @@ function Premium({ signedIn }: { signedIn: boolean }) {
           );
         })}
       </View>
-      {!signedIn && (
-        <Text style={[st.perk, { color: c.onAccent, fontSize: 14, opacity: 0.85 }]}>
-          Create a free account below first, so Premium stays with you on every device.
-        </Text>
-      )}
       {!!error && <Text style={[st.err, { color: c.onAccent }]}>{error}</Text>}
       <Text style={[st.perk, { color: c.onAccent, fontSize: 12.5, opacity: 0.7 }]}>Secure payment by Stripe. Prices in US dollars.</Text>
     </LinearGradient>
@@ -250,6 +273,7 @@ const st = StyleSheet.create({
   bar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 44 },
   barTitle: { fontFamily: font.display, fontSize: 26 },
   hello: { fontFamily: font.display, fontSize: 38, lineHeight: 40 },
+  intro: { fontFamily: font.body, fontSize: 16, lineHeight: 23, marginTop: -8 },
   card: { borderRadius: 22, borderWidth: 1.5, padding: 18, gap: 10 },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   cardTitle: { fontFamily: font.display, fontSize: 26 },
