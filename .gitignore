@@ -6,3 +6,8 @@ Thumbs.db
 !.env.example
 supabase/.temp/
 supabase/.branches/
+
+# Data science work (local only: may contain exported analytics)
+.venv/
+data/
+__pycache__/

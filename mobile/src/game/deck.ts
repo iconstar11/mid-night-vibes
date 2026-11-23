@@ -1,4 +1,6 @@
+import { cardId } from "./cards";
 import { COUPLE, EXTRA, GROUP } from "./content";
+import { TOP_PICKS } from "./topPicks";
 import type { CardType, GroupId, Heat } from "./types";
 
 export function shuffle<T>(list: readonly T[], rand = Math.random): T[] {
@@ -24,17 +26,38 @@ export function poolFor(group: GroupId, type: CardType, heat: Heat): string[] {
   return pool;
 }
 
+/** Same as poolFor, but each prompt with its heat level (1-3). */
+function levelledPool(group: GroupId, type: CardType, heat: Heat): { text: string; level: number }[] {
+  const out: { text: string; level: number }[] = [];
+  for (let l = 0; l < heat; l++) {
+    const decks = group === "couple" ? [COUPLE] : [GROUP, EXTRA[group]];
+    for (const d of decks) if (d) for (const text of d[type][l]) out.push({ text, level: l + 1 });
+  }
+  return out;
+}
+
+export type Drawn = { text: string; id: string; top: boolean };
+
 /**
  * Shuffled draw piles: no prompt repeats until every prompt at the current heat has come up.
+ * Top picks come first (those at the chosen heat before lower ones), so the first cards are the best.
  * Create a new one when the group or heat changes.
  */
 export class Draw {
-  private piles: Partial<Record<CardType, string[]>> = {};
-  constructor(private group: GroupId, private heat: Heat, private rand = Math.random) {}
+  private piles: Partial<Record<CardType, Drawn[]>> = {};
+  constructor(private group: GroupId, private heat: Heat, private rand = Math.random, private top: ReadonlySet<string> = TOP_PICKS) {}
 
-  next(type: CardType): string {
+  next(type: CardType): Drawn {
     let pile = this.piles[type];
-    if (!pile || !pile.length) pile = this.piles[type] = shuffle(poolFor(this.group, type, this.heat), this.rand);
+    if (!pile || !pile.length) {
+      const all = levelledPool(this.group, type, this.heat).map((p) => ({ ...p, id: cardId(p.text) }));
+      const rest = all.filter((p) => !this.top.has(p.id));
+      const topLower = all.filter((p) => this.top.has(p.id) && p.level < this.heat);
+      const topHere = all.filter((p) => this.top.has(p.id) && p.level === this.heat);
+      // pop() takes from the end: top picks at this heat first, then lower-heat top picks, then the rest
+      pile = this.piles[type] = [...shuffle(rest, this.rand), ...shuffle(topLower, this.rand), ...shuffle(topHere, this.rand)]
+        .map(({ text, id }) => ({ text, id, top: this.top.has(id) }));
+    }
     return pile.pop()!;
   }
 }

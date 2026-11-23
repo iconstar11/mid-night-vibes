@@ -11,6 +11,7 @@ import { Btn, Fine, Screen, Title } from "@/components/ui";
 import { GROUPS } from "@/game/content";
 import { useAuth } from "@/lib/auth";
 import { savePending } from "@/lib/pending";
+import { track } from "@/lib/track";
 import type { Card, Wedge } from "@/game/types";
 import { joinRoom, leaveRoom, onRoomEvent, useRoom, type Result, type RoomEvent, type Snapshot } from "@/lib/room";
 import { useGame } from "@/state/store";
@@ -37,7 +38,7 @@ function SignInToJoin({ code }: { code: string }) {
       <Title>Sign in to join this live game.</Title>
       <Fine style={{ textAlign: "left" }}>Live games are for players with a free account. It takes a minute, and you'll come straight back to this room.</Fine>
       <View style={{ marginTop: "auto", gap: 6 }}>
-        <Btn label="Sign in or create a free account" onPress={async () => { await savePending("room", `/r/${code}`); router.push("/account"); }} />
+        <Btn label="Sign in or create a free account" onPress={async () => { track("guest_wall", { reason: "room" }); await savePending("room", `/r/${code}`); router.push("/account"); }} />
       </View>
     </Screen>
   );

@@ -18,9 +18,15 @@ export type SpinPlan = {
   windup: boolean; // small pull-back before a tap spin
 };
 
-export function planSpin(n: number, power: number, dir: 1 | -1, windup: boolean, rand = Math.random): SpinPlan {
-  return { win: Math.floor(rand() * n), f: 0.18 + rand() * 0.64, power: Math.min(Math.max(power, 0), 1), dir, windup };
+/** `prefer`: wedge indexes to land on instead of any wedge (the first spins of a session land on top picks). */
+export function planSpin(n: number, power: number, dir: 1 | -1, windup: boolean, rand = Math.random, prefer: number[] = []): SpinPlan {
+  const ok = prefer.filter((i) => i >= 0 && i < n);
+  const win = ok.length ? ok[Math.floor(rand() * ok.length)] : Math.floor(rand() * n);
+  return { win, f: 0.18 + rand() * 0.64, power: Math.min(Math.max(power, 0), 1), dir, windup };
 }
+
+/** The wedge's text at a heat level (one text means the same at every level). */
+export const wedgeText = (texts: string[], heat: number) => texts[Math.min(heat, texts.length) - 1];
 
 export const WINDUP_RAD = 0.22;
 export const WINDUP_MS = 200;

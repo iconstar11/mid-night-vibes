@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 import type { Into, Sex } from "@/game/types";
+import { setAnalytics, useAnalytics } from "@/lib/track";
 import { addSavedPlayer, removeSavedPlayer, saveProfile, updateSavedPlayer, useProfile, type SavedPlayer, type Theme } from "@/lib/profile";
 import { font, useColors } from "@/theme/tokens";
 import { Btn, Fine, Label, Seg } from "./ui";
@@ -31,6 +32,7 @@ export function ProfileSettings() {
   const p = useProfile();
   const [name, setName] = useState(p.name);
   const [note, run] = useSavedNote();
+  const stats = useAnalytics((a) => a.on);
   useEffect(() => { setName(p.name); }, [p.name]);
   const input = [st.input, { borderColor: c.line, backgroundColor: c.bg, color: c.ink }];
 
@@ -68,6 +70,11 @@ export function ProfileSettings() {
       <SavedPlayers run={run} />
 
       <View style={[st.rule, { backgroundColor: c.line }]} />
+      <View>
+        <Label>Anonymous game stats</Label>
+        <Seg<"on" | "off"> value={stats ? "on" : "off"} onChange={(v) => { setAnalytics(v === "on"); run(Promise.resolve("")); }} accent={c.rose} options={[["on", "On"], ["off", "Off"]]} />
+        <Fine style={{ textAlign: "left", marginTop: 6 }}>Which cards are shown, skipped, done or starred. Never your name, email, gender, moods you type or messages.</Fine>
+      </View>
       <View>
         <Label>Appearance</Label>
         <Seg<Theme> value={p.theme} onChange={(v) => run(saveProfile({ theme: v }))} accent={c.rose} options={[["system", "Match device"], ["light", "Light"], ["dark", "Dark"]]} />

@@ -8,6 +8,7 @@ import type { Card, GroupId, PairId, Wedge } from "@/game/types";
 import type { SpinPlan } from "@/game/wheel";
 import { type AiState, useGame } from "@/state/store";
 import { ensureSession, supabase } from "./supabase";
+import { track } from "./track";
 
 export type Screen = "home" | "tod" | "wheel";
 export type Result = { label: string; text: string; ai: boolean };
@@ -148,6 +149,7 @@ export async function startHosting(): Promise<string> {
     await ch.track({ role: "host" });
     channel = ch;
     useRoom.setState({ code, status: "live" });
+    track("room_start", {});
     // Any change to players, turn, heat, mood or AI wedges goes out as a fresh snapshot
     unsubGame = useGame.subscribe(sendStateSoon);
     sendStateSoon();
@@ -212,6 +214,7 @@ export async function joinRoom(code: string) {
     await ch.track({ role: "viewer" });
     channel = ch;
     useRoom.setState({ status: "live" });
+    track("room_join", {});
   } catch (e) {
     useRoom.setState({ status: "error", error: (e as Error).message || "Couldn't join the room." });
   }

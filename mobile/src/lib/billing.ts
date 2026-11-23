@@ -5,6 +5,7 @@ import { Platform } from "react-native";
 
 import { refreshAccount, useAuth } from "./auth";
 import { supabase } from "./supabase";
+import { track } from "./track";
 
 export type Product = "monthly" | "yearly" | "pass";
 
@@ -36,6 +37,7 @@ async function open(url: string) {
 }
 
 export async function buy(product: Product) {
+  track("checkout_start", { product });
   await open(await call({ action: "checkout", product }));
 }
 

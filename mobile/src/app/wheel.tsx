@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { AdultOnly } from "@/components/Guard";
 import { MoodBar, MoodSheet } from "@/components/Mood";
 import { Sheet } from "@/components/Sheet";
+import { StarButton } from "@/components/StarButton";
 import { Timer } from "@/components/Timer";
 import { Wheel, type WheelHandle } from "@/components/Wheel";
 import { Fine, GameBar, Screen } from "@/components/ui";
@@ -12,10 +13,13 @@ import { WHEELS } from "@/game/content";
 import { fillTarget } from "@/game/match";
 import { durationOf } from "@/game/timer";
 import type { Wedge } from "@/game/types";
-import { planSpin } from "@/game/wheel";
+import { aiCardId, cardId, type CardSource } from "@/game/cards";
+import { TOP_PICKS } from "@/game/topPicks";
+import { planSpin, wedgeText } from "@/game/wheel";
 import { takeGuestTurn } from "@/lib/guestTurns";
 import { savePending } from "@/lib/pending";
 import { host } from "@/lib/room";
+import { track } from "@/lib/track";
 import { current, nextUp, useGame } from "@/state/store";
 import { font, useColors } from "@/theme/tokens";
 
@@ -37,11 +41,22 @@ function Game() {
   const [shown, setShown] = useState<Wedge[]>(target);
   const [hi, setHi] = useState(-1);
   const [spinning, setSpinning] = useState(false);
-  const [result, setResult] = useState<null | { label: string; text: string; ai: boolean }>(null);
+  const [result, setResult] = useState<null | { label: string; text: string; ai: boolean; id?: string; source?: CardSource }>(null);
   const [moodOpen, setMoodOpen] = useState(false);
   const me = current({ players, turn }).name;
+  // The first spins of a session land on top-pick wedges (not one already landed on)
+  const topLanded = useRef<Set<number>>(new Set());
+  const spins = useRef(0);
 
-  useEffect(() => { host.screen("wheel"); }, []);
+  const shownAt = useRef(0);
+  useEffect(() => {
+    host.screen("wheel");
+    const g = useGame.getState();
+    track("game_start", { game: "wheel", group: g.group, heat: g.heat, players_n: g.players.length, has_mood: !!g.mood });
+  }, []);
+  const ended = (name: "card_skip" | "card_done") => {
+    if (result) track(name, { game: "wheel", card_id: result.id, type: "wedge", source: result.source, ms_on_card: Date.now() - shownAt.current });
+  };
 
   // New wedges from the AI mood: swap them in once the wheel is idle
   useEffect(() => {
@@ -54,21 +69,31 @@ function Game() {
     setSpinning(true);
     // Guests get a few free spins; after that, sign in and carry on from here
     if (!(await takeGuestTurn())) {
+      track("guest_wall", { reason: "turns", game: "wheel" });
       setSpinning(false);
       await savePending("turns", "/wheel");
       router.push("/account");
       return;
     }
     setHi(-1);
-    const plan = planSpin(shown.length, power, dir, windup);
+    const prefer = spins.current < 3 && shown !== aiWheel
+      ? shown.map((w, i) => (TOP_PICKS.has(cardId(wedgeText(w[1], heat))) && !topLanded.current.has(i) ? i : -1)).filter((i) => i >= 0)
+      : [];
+    const plan = planSpin(shown.length, power, dir, windup, Math.random, prefer);
+    spins.current++;
+    if (prefer.includes(plan.win)) topLanded.current.add(plan.win);
     const start = wheel.current.rotation();
     host.spin(plan, start); // viewers replay the same spin from the same angle
     const win = await wheel.current.spin(plan, start);
     setHi(win);
     const w = shown[win];
     const s = useGame.getState();
-    const r = { label: w[0], text: fillTarget(w[1][Math.min(heat, w[1].length) - 1], current(s), s.players), ai: shown === aiWheel };
+    const raw = wedgeText(w[1], heat);
+    const ai = shown === aiWheel;
+    const r = { label: w[0], text: fillTarget(raw, current(s), s.players), ai, id: ai ? aiCardId(raw) : cardId(raw), source: (ai ? "ai" : prefer.includes(win) ? "top" : "deck") as CardSource };
     setResult(r);
+    shownAt.current = Date.now();
+    track("card_shown", { game: "wheel", card_id: r.id, type: "wedge", heat, source: r.source, turn_n: spins.current });
     host.result(r);
     setSpinning(false);
   }
@@ -88,14 +113,17 @@ function Game() {
 
       <Sheet open={!!result} onClose={close}>
         <Text style={[st.who, { color: c.onAccent }]}>{me}, this one's yours</Text>
-        <Text style={[st.kind, { color: c.brass }]}>{(result?.ai ? "✦ " : "") + (result?.label ?? "")}</Text>
+        <View style={st.labelRow}>
+          <Text style={[st.kind, { color: c.brass }]}>{(result?.ai ? "✦ " : "") + (result?.label ?? "")}</Text>
+          {result && <StarButton card={{ ...result, type: "wedge" }} game="wheel" heat={heat} />}
+        </View>
         <Text style={[st.text, { color: c.onAccent }]}>{result?.text}</Text>
         {result && durationOf(result.text) && <View style={{ marginBottom: 14 }}><Timer key={result.text} seconds={durationOf(result.text)!} /></View>}
         <View style={st.row}>
-          <Pressable onPress={() => { close(); setTimeout(() => spin(0.4, 1, true), 240); }} style={[st.skip, { borderColor: c.onAccent + "66" }]} accessibilityRole="button">
+          <Pressable onPress={() => { ended("card_skip"); close(); setTimeout(() => spin(0.4, 1, true), 240); }} style={[st.skip, { borderColor: c.onAccent + "66" }]} accessibilityRole="button">
             <Text style={[st.skipText, { color: c.onAccent }]}>Skip</Text>
           </Pressable>
-          <Pressable onPress={() => { nextTurn(); close(); }} style={[st.done, { backgroundColor: c.onAccent }]} accessibilityRole="button">
+          <Pressable onPress={() => { ended("card_done"); nextTurn(); close(); }} style={[st.done, { backgroundColor: c.onAccent }]} accessibilityRole="button">
             <Text style={[st.doneText, { color: c.wine }]} numberOfLines={1}>Done, {nextUp({ players, turn }).name}'s turn</Text>
           </Pressable>
         </View>
@@ -111,6 +139,7 @@ const st = StyleSheet.create({
   kind: { fontFamily: font.heavy, fontSize: 12.5, letterSpacing: 1.8, textTransform: "uppercase", textAlign: "center" },
   text: { fontFamily: font.display, fontSize: 32, lineHeight: 36, textAlign: "center", marginVertical: 10 },
   row: { flexDirection: "row", gap: 10 },
+  labelRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 },
   skip: { flex: 1, borderWidth: 1.5, borderRadius: 999, paddingVertical: 14, alignItems: "center" },
   skipText: { fontFamily: font.semibold, fontSize: 16 },
   done: { flex: 1.4, borderRadius: 999, paddingVertical: 14, paddingHorizontal: 10, alignItems: "center" },

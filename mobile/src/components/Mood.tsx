@@ -7,6 +7,7 @@ import { router, usePathname } from "expo-router";
 import { GROUPS } from "@/game/content";
 import { aiAllowance, refreshAccount, useAuth } from "@/lib/auth";
 import { savePending } from "@/lib/pending";
+import { track } from "@/lib/track";
 import { useGame, type AiState } from "@/state/store";
 import { font, useColors } from "@/theme/tokens";
 import { Sheet } from "./Sheet";
@@ -62,7 +63,11 @@ export function MoodSheet({ open, onClose }: { open: boolean; onClose: () => voi
   // Guests: remember the mood so it's set for them once they've signed in
   const signInFor = (m: string) => { savePending("mood", path, m); toAccount(); };
 
-  const apply = (m: string) => { setMood(m); onClose(); };
+  const apply = (m: string) => {
+    // Stats: which preset mood, or just "custom" (typed text is never sent)
+    if (m.trim()) track("mood_set", GROUPS[group].moods.includes(m) ? { preset: m, group } : { custom: true, group });
+    setMood(m); onClose();
+  };
   // Picking a mood is customizing with AI: guests go to sign in first
   const choose = (m: string) => (email ? apply(m) : signInFor(m));
   return (

@@ -13,4 +13,5 @@ export type Wedge = [string, string[]];
 
 export type Player = { name: string; g: Sex; into: Into };
 
-export type Card = { type: CardType; text: string; ai: boolean };
+/** `id`: stable card id (see cards.ts). `source`: where it came from, for stats. */
+export type Card = { type: CardType; text: string; ai: boolean; id?: string; source?: "top" | "deck" | "ai" | "tailored" };

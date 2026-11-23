@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { aiCardId, cardId } from "@/game/cards";
 import { Draw, shuffle } from "@/game/deck";
 import { fillTarget } from "@/game/match";
 import { localMood } from "@/game/mood";
@@ -165,15 +166,16 @@ export const useGame = create<State>((set, get) => {
     draw: (type) => {
       const s = get();
       const pool = s.ai.tod?.[type];
-      let text: string;
-      let ai = false;
       if (pool && pool.length) {
-        text = pool[pool.length - 1];
+        const text = pool[pool.length - 1];
         set({ ai: { ...s.ai, tod: { ...s.ai.tod!, [type]: pool.slice(0, -1) } } });
-        ai = s.ai.state === "ready";
+        const ai = s.ai.state === "ready";
         if (pool.length <= 3) topUp();
-      } else text = deck.next(type);
-      return { type, text: fillTarget(text, current(s), s.players), ai };
+        // AI cards, or built-in cards that match the mood (local fallback)
+        return { type, text: fillTarget(text, current(s), s.players), ai, id: ai ? aiCardId(text) : cardId(text), source: ai ? "ai" : "deck" };
+      }
+      const d = deck.next(type);
+      return { type, text: fillTarget(d.text, current(s), s.players), ai: false, id: d.id, source: d.top ? "top" : "deck" };
     },
     wedges: () => {
       const s = get();

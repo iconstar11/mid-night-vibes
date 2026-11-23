@@ -6,6 +6,8 @@ import { Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { AnalyticsNotice } from "@/components/AnalyticsNotice";
+import { trackSessionStart } from "@/lib/track";
 import { useColors } from "@/theme/tokens";
 
 export default function RootLayout() {
@@ -13,6 +15,7 @@ export default function RootLayout() {
   const darkUi = c.bg === "#1F0A14";
   // Web: the page behind the app follows the chosen appearance too (the HTML shell only knows the device's)
   useEffect(() => { if (Platform.OS === "web") document.body.style.background = c.bg; }, [c.bg]);
+  useEffect(() => { trackSessionStart(); }, []);
   // Fonts live in assets/fonts, not node_modules: Cloudflare Pages drops any uploaded folder named node_modules
   const [loaded] = useFonts({
     InstrumentSerif_400Regular: require("../../assets/fonts/InstrumentSerif_400Regular.ttf"),
@@ -27,6 +30,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StatusBar style={darkUi ? "light" : "dark"} />
         <Stack screenOptions={{ headerShown: false, animation: "fade", contentStyle: { backgroundColor: c.bg } }} />
+        <AnalyticsNotice />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

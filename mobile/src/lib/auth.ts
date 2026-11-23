@@ -1,6 +1,7 @@
 // Accounts: guests play with an anonymous Supabase user; signing up gives them a real account.
 // Plans: guest (no AI) / free / premium, with AI mood limits per window of days from the plan_limits table.
 import type { User } from "@supabase/supabase-js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
@@ -9,7 +10,11 @@ import { create } from "zustand";
 
 import { useGame } from "@/state/store";
 import { takePending } from "./pending";
+
+const SIGNING_IN = "mv.signingIn"; // set before Google's redirect, so the reload knows it was a sign-in
+import { peekPending } from "./pending";
 import { clearProfile, loadProfile } from "./profile";
+import { track } from "./track";
 import { stopHosting, useRoom } from "./room";
 import { ensureSession, providerEnabled, supabase } from "./supabase";
 
@@ -44,6 +49,7 @@ export async function refreshAccount() {
     email: user && !user.is_anonymous ? user.email ?? null : null,
     name: (user?.user_metadata?.display_name as string | undefined) ?? null,
   };
+  const before = useAuth.getState();
   if (!user) { useAuth.setState({ ...base, ready: true, plan: "guest", used: 0 }); return; }
   const { data: rows } = await supabase.rpc("my_usage");
   const row = Array.isArray(rows) ? rows[0] : rows;
@@ -60,9 +66,20 @@ export async function refreshAccount() {
     canManage: !!row?.can_manage,
   });
   if (base.email) {
+    if (!before.email) trackSignIn(user, before.ready);
     loadProfile(base.name).catch(() => null);
     resumePending();
   } else clearProfile();
+}
+
+/** Stats: a guest just became signed in (sign-up if the account is brand new). Not counted on normal app opens. */
+async function trackSignIn(user: User, wasReady: boolean) {
+  const flag = await AsyncStorage.getItem(SIGNING_IN).catch(() => null);
+  if (!wasReady && !flag) return; // just opening the app while already signed in
+  AsyncStorage.removeItem(SIGNING_IN).catch(() => {});
+  const isNew = Date.now() - new Date(user.created_at).getTime() < 10 * 60 * 1000;
+  const from = (await peekPending())?.reason ?? null;
+  track(isNew ? "signup" : "signin", { method: user.app_metadata?.provider === "google" ? "google" : "email", from });
 }
 
 let resuming = false;
@@ -154,6 +171,7 @@ export async function signInWithGoogle(): Promise<AuthResult> {
   if (!(await providerEnabled("google"))) return { ok: false, error: "Google sign-in isn't switched on yet. Use email for now." };
   await beforeSwitch();
   if (Platform.OS === "web") {
+    await AsyncStorage.setItem(SIGNING_IN, "google").catch(() => {});
     const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${window.location.origin}/account` } });
     return error ? { ok: false, error: friendly(error.message) } : { ok: true };
   }

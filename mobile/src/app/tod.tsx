@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
@@ -8,6 +8,7 @@ import Svg, { Circle, Rect } from "react-native-svg";
 import { AdultOnly } from "@/components/Guard";
 import { MoodBar, MoodSheet } from "@/components/Mood";
 import { CardFace, cardLabel, useCardMotion } from "@/components/TodCard";
+import { StarButton } from "@/components/StarButton";
 import { Timer } from "@/components/Timer";
 import { durationOf } from "@/game/timer";
 import { GameBar, Press, Screen } from "@/components/ui";
@@ -15,6 +16,7 @@ import type { Card, CardType } from "@/game/types";
 import { to, wait } from "@/lib/anim";
 import { takeGuestTurn } from "@/lib/guestTurns";
 import { savePending } from "@/lib/pending";
+import { track } from "@/lib/track";
 import { host } from "@/lib/room";
 import { current, nextUp, useGame } from "@/state/store";
 import { HEAT_NAMES, font, useColors } from "@/theme/tokens";
@@ -46,12 +48,27 @@ function Game() {
   const tStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseT.value }] }));
   const dStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseD.value }] }));
 
-  useEffect(() => { host.screen("tod"); }, []);
+  const shownAt = useRef(0);
+  const turnsShown = useRef(0);
+  useEffect(() => {
+    host.screen("tod");
+    const g = useGame.getState();
+    track("game_start", { game: "tod", group: g.group, heat: g.heat, players_n: g.players.length, has_mood: !!g.mood });
+  }, []);
+  /** Stats for the card on screen (ids and where it came from; never the text). */
+  const shown = (d: Card) => {
+    shownAt.current = Date.now();
+    track("card_shown", { game: "tod", card_id: d.id, type: d.type, heat, source: d.source, turn_n: ++turnsShown.current });
+  };
+  const ended = (name: "card_skip" | "card_done") => {
+    if (card) track(name, { game: "tod", card_id: card.id, type: card.type, source: card.source, ms_on_card: Date.now() - shownAt.current });
+  };
   useEffect(() => { setCard(null); }, [heat]);
 
   /** Guests get a few free cards; after that, sign in and carry on from this card. */
   async function allowed() {
     if (await takeGuestTurn()) return true;
+    track("guest_wall", { reason: "turns", game: "tod" });
     await savePending("turns", "/tod");
     router.push("/account");
     return false;
@@ -62,8 +79,10 @@ function Game() {
     setBusy(true);
     if (!(await allowed())) { setBusy(false); return; }
     tap();
+    ended("card_skip"); // only when a card was showing (Skip)
     const drawn = draw(type);
     host.card(drawn, false);
+    shown(drawn);
     await motion.flip(() => setCard(drawn));
     setBusy(false);
   }
@@ -83,6 +102,7 @@ function Game() {
     }
     tap();
     await wait(motion.reduce ? 0 : 250);
+    shown(drawn);
     await motion.flip(() => { setShuffleText(null); setCard(drawn); });
     setBusy(false);
   }
@@ -90,6 +110,7 @@ function Game() {
   async function done() {
     if (busy) return;
     setBusy(true); tap();
+    ended("card_done");
     host.next();
     await motion.next(() => { nextTurn(); setCard(null); });
     setBusy(false);
@@ -105,6 +126,7 @@ function Game() {
         <GameBar game="Truth or Dare" who={`${me}'s turn`} />
         <MoodBar onPress={() => setMoodOpen(true)} />
         <CardFace motion={motion} who={who} text={text} kind={kind} shuffling={!!shuffleText}>
+          {card && !shuffleText && <StarButton card={card} game="tod" heat={heat} corner />}
           {card && !shuffleText && durationOf(card.text) && <Timer key={card.text} seconds={durationOf(card.text)!} />}
           {card && !shuffleText && (
             <View style={st.onCard}>

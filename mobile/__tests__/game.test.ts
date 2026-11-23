@@ -1,6 +1,8 @@
 /// <reference types="jest" />
 import { COUPLE, GROUP, WHEELS } from "@/game/content";
+import { cardId } from "@/game/cards";
 import { Draw, poolFor } from "@/game/deck";
+import { TOP_PICKS } from "@/game/topPicks";
 import { fillTarget, into, matchesFor } from "@/game/match";
 import { localMood, moodStems } from "@/game/mood";
 import type { Player } from "@/game/types";
@@ -25,9 +27,41 @@ describe("deck", () => {
   it("never repeats until every prompt has come up", () => {
     const d = new Draw("couple", 3);
     const n = poolFor("couple", "truth", 3).length;
-    const seen = new Set(Array.from({ length: n }, () => d.next("truth")));
+    const seen = new Set(Array.from({ length: n }, () => d.next("truth").text));
     expect(seen.size).toBe(n);
-    expect(typeof d.next("truth")).toBe("string"); // reshuffles when empty
+    expect(typeof d.next("truth").text).toBe("string"); // reshuffles when empty
+  });
+  it("draws top picks first: this heat's, then lower heats', then the rest", () => {
+    const pool = poolFor("couple", "dare", 2);
+    const top = new Set([cardId(COUPLE.dare[1][0]), cardId(COUPLE.dare[1][1]), cardId(COUPLE.dare[0][0])]);
+    const d = new Draw("couple", 2, Math.random, top);
+    const first = [d.next("dare"), d.next("dare"), d.next("dare")];
+    expect(first.slice(0, 2).map((x) => x.text).sort()).toEqual([COUPLE.dare[1][0], COUPLE.dare[1][1]].sort());
+    expect(first[2].text).toBe(COUPLE.dare[0][0]);
+    expect(first.every((x) => x.top)).toBe(true);
+    const rest = Array.from({ length: pool.length - 3 }, () => d.next("dare"));
+    expect(rest.some((x) => x.top)).toBe(false);
+  });
+});
+
+describe("card ids", () => {
+  it("are stable and ignore case and spacing", () => {
+    expect(cardId("Kiss  your partner. ")).toBe(cardId("kiss your partner."));
+    expect(cardId("a")).not.toBe(cardId("b"));
+    expect(cardId("Hold eye contact for 30 seconds without laughing.")).toMatch(/^c-[0-9a-z]+$/);
+  });
+  it("every top pick is a real built-in card", () => {
+    const all = new Set<string>();
+    for (const d of [COUPLE, GROUP]) for (const t of ["truth", "dare"] as const) d[t].flat().forEach((x) => all.add(cardId(x)));
+    for (const g of ["couple", "group"] as const) WHEELS[g].forEach(([, texts]) => texts.forEach((x) => all.add(cardId(x))));
+    for (const id of TOP_PICKS) expect(all.has(id)).toBe(true);
+  });
+});
+
+describe("wheel top picks", () => {
+  it("lands on a preferred wedge when given", () => {
+    for (let i = 0; i < 50; i++) expect([2, 5]).toContain(planSpin(8, 0.5, 1, false, Math.random, [2, 5]).win);
+    expect(planSpin(8, 0.5, 1, false, Math.random, []).win).toBeLessThan(8);
   });
 });
 
@@ -143,5 +177,20 @@ describe("guest turns", () => {
   });
   it("formats the local day", () => {
     expect(today(new Date(2026, 0, 5))).toBe("2026-01-05");
+  });
+});
+
+import { cleanProps } from "@/game/privacy";
+
+describe("stats privacy", () => {
+  it("drops anything that isn't an allowed, plain value", () => {
+    const out = cleanProps({
+      card_id: "c-abc", heat: 2, on: true, name: "Antony", email: "a@b.c", gender: "m", mood: "kissing in the shower",
+      text: "Kiss Wanjiru", players: ["A", "B"], nested: { a: 1 }, ms_on_card: 1234.5678,
+    });
+    expect(out).toEqual({ card_id: "c-abc", heat: 2, on: true, ms_on_card: 1234.57 });
+  });
+  it("cuts long strings", () => {
+    expect((cleanProps({ ref: "x".repeat(500) }).ref as string).length).toBe(60);
   });
 });

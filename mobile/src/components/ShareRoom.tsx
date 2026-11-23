@@ -6,6 +6,7 @@ import { router } from "expo-router";
 
 import { useAuth } from "@/lib/auth";
 import { savePending } from "@/lib/pending";
+import { track } from "@/lib/track";
 import { roomLink, startHosting, stopHosting, useRoom } from "@/lib/room";
 import { font, useColors } from "@/theme/tokens";
 import { Sheet } from "./Sheet";
@@ -40,7 +41,7 @@ export function ShareRoom({ open, onClose }: { open: boolean; onClose: () => voi
       {!email && (
         <>
           <Fine style={{ textAlign: "left" }}>Live games need a free account, for you and the people joining. You'll come straight back here after signing in.</Fine>
-          <Btn label="Sign in to start a live game" onPress={async () => { onClose(); await savePending("host", "/home?share=1"); router.push("/account"); }} />
+          <Btn label="Sign in to start a live game" onPress={async () => { track("guest_wall", { reason: "host" }); onClose(); await savePending("host", "/home?share=1"); router.push("/account"); }} />
         </>
       )}
 

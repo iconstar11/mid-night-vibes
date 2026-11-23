@@ -12,6 +12,7 @@ import { PLAN_NAMES, aiAllowance, refreshAccount,signIn, signInWithGoogle, signO
 import { OFFERS, buy, manageBilling, waitForPremium, type Product } from "@/lib/billing";
 import { peekPending, type PendingReason } from "@/lib/pending";
 import { useProfile } from "@/lib/profile";
+import { track } from "@/lib/track";
 import { ensureSession, supabaseReady } from "@/lib/supabase";
 import { font, useColors } from "@/theme/tokens";
 
@@ -34,7 +35,7 @@ function AccountScreen() {
   }, []);
   // Back from Stripe: the webhook switches Premium on within a few seconds
   useEffect(() => {
-    if (paid) waitForPremium().then((ok) => setPaying(ok ? "done" : "slow"));
+    if (paid) waitForPremium().then((ok) => { setPaying(ok ? "done" : "slow"); if (ok) track("premium_on", { product: useAuth.getState().product }); });
   }, [paid]);
 
   return (
@@ -136,6 +137,7 @@ const PERKS = ["100 AI moods a day", "AI cards and wheels for any mood", "Every 
 /** Premium offers: Stripe Checkout on the web. Only signed-in users see this, so Premium stays with their account. */
 function Premium() {
   const c = useColors();
+  useEffect(() => { track("premium_view", { plan: useAuth.getState().plan }); }, []);
   const [busy, setBusy] = useState<Product | null>(null);
   const [error, setError] = useState("");
   async function pick(p: Product) {
