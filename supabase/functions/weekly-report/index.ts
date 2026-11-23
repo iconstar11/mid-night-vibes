@@ -1,7 +1,8 @@
 // Supabase Edge Function "weekly-report": the owner's report on the last 7 days vs the 7 before.
-//   POST {"send": true}  (Bearer REPORT_KEY)  → emails the report to REPORT_TO (pg_cron, Mondays)
-//   GET                  (Bearer REPORT_KEY)  → the report as JSON, for midnightvibes.online/report
-// Deployed without JWT verification: it checks REPORT_KEY itself. Nothing personal is in the report.
+//   POST {"send": true}  (Bearer REPORT_KEY)      → emails the report to REPORT_TO (pg_cron, Mondays)
+//   GET/POST             (Bearer <owner's JWT>)   → the report as JSON, for the app's /report screen
+// Only signed-in owners (owners table) can view it; the key can only send the email. Nothing personal is in it.
+// Deployed without gateway JWT verification because pg_cron sends the key, not a JWT; this function checks both.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import cards from "../_shared/cards.json" with { type: "json" };
@@ -14,7 +15,7 @@ const SITE = "https://midnightvibes.online";
 const ALLOWED_ORIGINS = new Set([SITE, "https://www.midnightvibes.online", "http://localhost:8081"]);
 const cors = (origin: string | null) => ({
   "Access-Control-Allow-Origin": origin && ALLOWED_ORIGINS.has(origin) ? origin : SITE,
-  "Access-Control-Allow-Headers": "authorization, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   Vary: "Origin",
 });
@@ -85,21 +86,25 @@ Deno.serve(async (req) => {
   const given = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   const json = (status: number, body: unknown) =>
     new Response(JSON.stringify(body), { status, headers: { ...cors(origin), "Content-Type": "application/json", "Cache-Control": "no-store" } });
-  if (!key || !sameKey(given, key)) return json(401, { error: "Wrong or missing report key." });
-
   try {
-    const report = await build();
-    if (req.method === "POST") {
-      const body = await req.json().catch(() => ({}));
-      if (body?.send) {
-        const to = Deno.env.get("REPORT_TO");
-        if (!to) return json(500, { error: "Set the REPORT_TO secret to your email address." });
-        const { html, text } = emailBody(report, `${SITE}/report#key=${encodeURIComponent(key)}`);
-        const sent = await sendEmail(to, "Midnight Vibes: your week", html, text);
-        return json(sent.ok ? 200 : 502, { sent: sent.ok });
-      }
+    // 1. The Monday job (pg_cron) with REPORT_KEY: email the report. The key can only trigger this email to the owner.
+    if (key && sameKey(given, key)) {
+      const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+      if (!body?.send) return json(400, { error: "The report key only sends the email. Open the report in the app." });
+      const to = Deno.env.get("REPORT_TO");
+      if (!to) return json(500, { error: "Set the REPORT_TO secret to your email address." });
+      const { html, text } = emailBody(await build(), `${SITE}/report`);
+      const sent = await sendEmail(to, "Midnight Vibes: your week", html, text);
+      return json(sent.ok ? 200 : 502, { sent: sent.ok });
     }
-    return json(200, report);
+
+    // 2. Viewing the report: only a signed-in owner (owners table), checked here on the server
+    const { data: auth } = await admin.auth.getUser(given);
+    const uid = auth?.user?.id;
+    if (!uid || auth.user.is_anonymous) return json(401, { error: "Sign in with the owner account to see the report." });
+    const { data: owner } = await admin.from("owners").select("user_id").eq("user_id", uid).maybeSingle();
+    if (!owner) return json(403, { error: "This account can't see the report." });
+    return json(200, await build());
   } catch (e) {
     console.error("weekly-report:", (e as Error).message);
     return json(500, { error: "Couldn't build the report." });

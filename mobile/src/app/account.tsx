@@ -13,7 +13,7 @@ import { OFFERS, buy, manageBilling, waitForPremium, type Product } from "@/lib/
 import { peekPending, type PendingReason } from "@/lib/pending";
 import { useProfile } from "@/lib/profile";
 import { track } from "@/lib/track";
-import { ensureSession, supabaseReady } from "@/lib/supabase";
+import { ensureSession, supabase, supabaseReady } from "@/lib/supabase";
 import { font, useColors } from "@/theme/tokens";
 
 export default function Account() {
@@ -61,6 +61,7 @@ function AccountScreen() {
             {paying && <PaidNote state={paying} />}
             <Usage />
             <ProfileSettings />
+            <OwnerReportLink />
             {plan === "premium" ? <PremiumActive /> : <Premium />}
             <Btn kind="quiet" label="Sign out" onPress={signOut} />
           </Animated.View>
@@ -77,6 +78,14 @@ function AccountScreen() {
       )}
     </Screen>
   );
+}
+
+/** Owners only: a way into the weekly report (the server checks again before showing anything). */
+function OwnerReportLink() {
+  const [owner, setOwner] = useState(false);
+  useEffect(() => { supabase?.rpc("is_owner").then(({ data }) => setOwner(data === true)); }, []);
+  if (!owner) return null;
+  return <Btn kind="quiet" label="Open the weekly report" onPress={() => router.push("/report")} />;
 }
 
 const WHY: Record<PendingReason, string> = {
