@@ -1,6 +1,7 @@
 // Built-in card id → original text (with {target} still in it, so no player names), built on first use.
 import { cardId } from "./cards";
 import { COUPLE, EXTRA, GROUP, WHEELS } from "./content";
+import { PROMOTED } from "./promoted";
 
 let index: Map<string, string> | null = null;
 
@@ -12,6 +13,7 @@ export function builtInText(id: string): string | undefined {
       for (const t of ["truth", "dare"] as const) deck[t].flat().forEach((x) => index!.set(cardId(x), x));
     }
     for (const g of ["couple", "group"] as const) WHEELS[g].forEach(([, texts]) => texts.forEach((x) => index!.set(cardId(x), x)));
+    for (const p of PROMOTED) index.set(cardId(p.text), p.text);
   }
   return index.get(id);
 }

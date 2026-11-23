@@ -4,7 +4,7 @@ export type Value = string | number | boolean | null;
 
 export const ALLOWED_PROPS = new Set([
   "ref", "platform", "installed", "game", "group", "heat", "players_n", "has_mood", "card_id", "type", "source",
-  "turn_n", "ms_on_card", "on", "preset", "custom", "reason", "method", "from", "viewers", "product", "plan",
+  "turn_n", "ms_on_card", "on", "preset", "custom", "reason", "method", "from", "viewers", "product", "plan", "guest",
 ]);
 
 /** Keep only allowed, short, plain values. */

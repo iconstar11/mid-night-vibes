@@ -39,8 +39,13 @@ async function period(from: Date, to: Date): Promise<Period> {
   return data as Period;
 }
 
-const withText = (rows: { card_id: string }[]) =>
-  rows.map((r) => ({ ...r, ...(CARDS[r.card_id] ?? { text: r.card_id.startsWith("ai-") ? "(AI card)" : r.card_id }) }));
+/** Card text for the report: built-in from cards.json, AI cards from the ai_cards table. */
+async function withText(rows: { card_id: string }[]) {
+  const ai = rows.map((r) => r.card_id).filter((id) => id.startsWith("ai-"));
+  const { data } = ai.length ? await admin.from("ai_cards").select("id,text").in("id", ai) : { data: [] };
+  const aiText = new Map((data ?? []).map((x: { id: string; text: string }) => [x.id, x.text]));
+  return rows.map((r) => ({ ...r, ...(CARDS[r.card_id] ?? { text: aiText.has(r.card_id) ? `✦ AI: ${aiText.get(r.card_id)}` : r.card_id }) }));
+}
 
 async function build() {
   const now = new Date();
@@ -49,8 +54,8 @@ async function build() {
     period(new Date(now.getTime() - 7 * day), now),
     period(new Date(now.getTime() - 14 * day), new Date(now.getTime() - 7 * day)),
   ]);
-  cur.top_cards = withText(cur.top_cards);
-  cur.most_skipped = withText(cur.most_skipped);
+  cur.top_cards = await withText(cur.top_cards);
+  cur.most_skipped = await withText(cur.most_skipped);
   return { generated: now.toISOString(), current: cur, previous: prev };
 }
 

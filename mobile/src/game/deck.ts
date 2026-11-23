@@ -1,5 +1,6 @@
 import { cardId } from "./cards";
 import { COUPLE, EXTRA, GROUP } from "./content";
+import { PROMOTED } from "./promoted";
 import { TOP_PICKS } from "./topPicks";
 import type { CardType, GroupId, Heat } from "./types";
 
@@ -32,6 +33,11 @@ function levelledPool(group: GroupId, type: CardType, heat: Heat): { text: strin
   for (let l = 0; l < heat; l++) {
     const decks = group === "couple" ? [COUPLE] : [GROUP, EXTRA[group]];
     for (const d of decks) if (d) for (const text of d[type][l]) out.push({ text, level: l + 1 });
+  }
+  // AI cards you promoted to the deck (girls'/boys' nights also get the shared group ones)
+  for (const p of PROMOTED) {
+    const fits = group === "couple" ? p.deck === "couple" : p.deck === "group" || p.deck === group;
+    if (fits && p.type === type && p.heat <= heat) out.push({ text: p.text, level: p.heat });
   }
   return out;
 }

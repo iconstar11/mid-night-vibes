@@ -10,6 +10,7 @@
 import Anthropic from "npm:@anthropic-ai/sdk@1.11.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+import { aiCardId } from "../_shared/cardId.ts";
 import { GROUPS, HEAT, PAIRS, SYSTEM, TASKS, type TaskName } from "../_shared/prompt.ts";
 
 // AI limits per plan live in the plan_limits table (guest / free / premium): ai_moods_per_day moods per window_days
@@ -126,6 +127,7 @@ Deno.serve(async (req) => {
       if (!likes.length) await admin.from("ai_cache").upsert({ key, variant: cached?.length ?? 0, payload: result }).then(({ error }) => {
         if (error) console.error("cache:", error.message);
       });
+      saveAiCards(result, { task, heat, audience, provider: p.name, tailored: likes.length > 0 });
       const res = send(200, result);
       res.headers.set("X-AI-Provider", p.name);
       if (skipped.length) res.headers.set("X-AI-Skipped", skipped.join(","));
@@ -140,6 +142,26 @@ Deno.serve(async (req) => {
   if (newMood) await admin.rpc("refund_ai_mood", { uid }).then(({ error }) => { if (error) console.error("refund:", error.message); });
   return send(last.status, { error: last.userMessage });
 });
+
+// ---------- Saving AI cards for analysis ----------
+// Each new card once, exactly as the app receives it ({target} placeholders, no player names, no typed mood).
+// Fire-and-forget: never slows down or breaks the answer.
+// deno-lint-ignore no-explicit-any
+function saveAiCards(result: any, o: { task: TaskName; heat: number; audience: string; provider: string; tailored: boolean }) {
+  const rows: Record<string, unknown>[] = [];
+  const add = (type: string, text: unknown, label?: string) => {
+    const t = String(text ?? "").trim();
+    if (t) rows.push({ id: aiCardId(t), game: o.task, type, label: label ?? null, text: t.slice(0, 400), heat: o.heat, audience: o.audience, provider: o.provider, tailored: o.tailored });
+  };
+  if (o.task === "tod") {
+    for (const x of result?.truths ?? []) add("truth", x);
+    for (const x of result?.dares ?? []) add("dare", x);
+  } else for (const w of result?.wedges ?? []) add("wedge", w?.text, w?.label);
+  if (!rows.length) return;
+  admin.from("ai_cards").upsert(rows, { onConflict: "id", ignoreDuplicates: true }).then(({ error }) => {
+    if (error) console.error("ai_cards:", error.message);
+  });
+}
 
 // ---------- Providers ----------
 

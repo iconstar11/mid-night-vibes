@@ -4,7 +4,9 @@ import { Platform, Pressable, StyleSheet, Text } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 
 import type { CardSource } from "@/game/cards";
+import { useAuth } from "@/lib/auth";
 import { toggleStar, useStars } from "@/lib/stars";
+import { useGame } from "@/state/store";
 import { useColors } from "@/theme/tokens";
 
 type Props = {
@@ -23,7 +25,7 @@ export function StarButton({ card, game, heat, corner }: Props) {
   if (!card.id) return null;
 
   const press = () => {
-    toggleStar({ id: card.id!, source: card.source, game, type: card.type, heat });
+    toggleStar({ id: card.id!, source: card.source, game, type: card.type, heat, group: useGame.getState().group, guest: !useAuth.getState().email });
     if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
     pop.value = withSequence(withTiming(1.35, { duration: 120 }), withTiming(1, { duration: 160 }));
   };

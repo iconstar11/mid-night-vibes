@@ -38,7 +38,11 @@ Supporting metrics:
 | `room_start` / `room_join` | live room | none |
 | `premium_view` / `checkout_start` / `premium_on` | paywall steps | `plan` / `product` |
 
-**Never logged:** names, emails, gender or orientation, typed mood text, AI card text, IP addresses. An allow-list in `mobile/src/game/privacy.ts` enforces it (unit-tested). The export replaces user ids with salted hashes.
+Card events also carry `group` and `guest` (true/false), for the per-group and guests-vs-signed-in breakdowns.
+
+AI-written cards are saved once each by the server in `ai_cards` (text as the AI wrote it, with `{target}` placeholders; never the typed mood or player names), so AI cards can be analysed and the best added to the deck.
+
+**Never logged:** names, emails, gender or orientation, typed mood text, IP addresses. An allow-list in `mobile/src/game/privacy.ts` enforces it (unit-tested). The export replaces user ids with salted hashes.
 
 ## 3. Funnel and where people drop
 
@@ -86,7 +90,7 @@ With few users, classic A/B tests take a long time. Run one at a time, decide in
 - *Test:* compare the link-tap rates per post group with a Mann-Whitney U test (few posts, skewed numbers).
 - *Disproved if* the medians don't differ.
 
-For the cards themselves, the **smoothed score** (Bayesian average: `(stars + prior_rate × 20) / (shown + 20)`) ranks cards without letting a card with 2 views and 2 stars top the list. Later, a Thompson-sampling bandit can choose which cards to show first, automatically balancing trying new cards against showing proven ones. [standard]
+For the cards themselves, the **combined score** values each play at 3 for a star, 1 for Done and −1 for a Skip, averages that per play, and pulls it towards the overall average until the card has 20 plays (a Bayesian average). Cards with 2 lucky plays can't top the list. The Excel export ranks every card by it on the **Truths**, **Dares** and **Spin the Wheel** sheets (built-in and AI cards, played or not), lists the top 5 per type × group × heat on **Top cards**, and splits each card **by group**, **by heat**, **guests vs signed-in** and **by week**. `cards_to_excel.py` then marks **suggested** top picks (top 3 per game/deck/heat with 30+ plays) and lists AI cards you can add to the deck. Later, a Thompson-sampling bandit can choose which cards to show first, automatically balancing trying new cards against showing proven ones. [standard]
 
 ## 6. SQL (Supabase → SQL editor)
 

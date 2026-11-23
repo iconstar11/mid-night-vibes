@@ -15,13 +15,13 @@ AsyncStorage.getItem(KEY)
   .then((raw) => { if (raw) useStars.setState({ list: JSON.parse(raw) }); })
   .catch(() => {});
 
-export function toggleStar(card: { id: string; source?: CardSource; game: "tod" | "wheel"; type?: string; heat?: number }) {
+export function toggleStar(card: { id: string; source?: CardSource; game: "tod" | "wheel"; type?: string; heat?: number; group?: string; guest?: boolean }) {
   const list = useStars.getState().list;
   const on = !list.some((s) => s.id === card.id);
   const next = on ? [...list, { id: card.id, at: Date.now() }] : list.filter((s) => s.id !== card.id);
   useStars.setState({ list: next });
   AsyncStorage.setItem(KEY, JSON.stringify(next.slice(-300))).catch(() => {});
-  track("card_star", { card_id: card.id, on, source: card.source, game: card.game, type: card.type, heat: card.heat });
+  track("card_star", { card_id: card.id, on, source: card.source, game: card.game, type: card.type, heat: card.heat, group: card.group, guest: card.guest });
 }
 
 /** Up to `n` most recent starred built-in cards, as their original text (for tailored AI picks). */

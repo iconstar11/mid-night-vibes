@@ -19,6 +19,7 @@ import { planSpin, wedgeText } from "@/game/wheel";
 import { takeGuestTurn } from "@/lib/guestTurns";
 import { savePending } from "@/lib/pending";
 import { host } from "@/lib/room";
+import { useAuth } from "@/lib/auth";
 import { track } from "@/lib/track";
 import { current, nextUp, useGame } from "@/state/store";
 import { font, useColors } from "@/theme/tokens";
@@ -55,7 +56,7 @@ function Game() {
     track("game_start", { game: "wheel", group: g.group, heat: g.heat, players_n: g.players.length, has_mood: !!g.mood });
   }, []);
   const ended = (name: "card_skip" | "card_done") => {
-    if (result) track(name, { game: "wheel", card_id: result.id, type: "wedge", source: result.source, ms_on_card: Date.now() - shownAt.current });
+    if (result) track(name, { game: "wheel", heat, group, guest: !useAuth.getState().email, card_id: result.id, type: "wedge", source: result.source, ms_on_card: Date.now() - shownAt.current });
   };
 
   // New wedges from the AI mood: swap them in once the wheel is idle
@@ -93,7 +94,7 @@ function Game() {
     const r = { label: w[0], text: fillTarget(raw, current(s), s.players), ai, id: ai ? aiCardId(raw) : cardId(raw), source: (ai ? "ai" : prefer.includes(win) ? "top" : "deck") as CardSource };
     setResult(r);
     shownAt.current = Date.now();
-    track("card_shown", { game: "wheel", card_id: r.id, type: "wedge", heat, source: r.source, turn_n: spins.current });
+    track("card_shown", { game: "wheel", heat, group, guest: !useAuth.getState().email, card_id: r.id, type: "wedge", source: r.source, turn_n: spins.current });
     host.result(r);
     setSpinning(false);
   }

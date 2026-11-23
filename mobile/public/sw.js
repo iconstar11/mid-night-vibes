@@ -1,7 +1,7 @@
 // Midnight Vibes service worker: makes the app installable and lets it open offline.
 // Bump VERSION on each web release so installed apps drop old files.
 // Expo bundles have hashed names, so cache-first is safe for them.
-const VERSION = "mv-7";
+const VERSION = "mv-8";
 const SHELL = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {

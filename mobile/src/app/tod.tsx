@@ -16,6 +16,7 @@ import type { Card, CardType } from "@/game/types";
 import { to, wait } from "@/lib/anim";
 import { takeGuestTurn } from "@/lib/guestTurns";
 import { savePending } from "@/lib/pending";
+import { useAuth } from "@/lib/auth";
 import { track } from "@/lib/track";
 import { host } from "@/lib/room";
 import { current, nextUp, useGame } from "@/state/store";
@@ -56,12 +57,13 @@ function Game() {
     track("game_start", { game: "tod", group: g.group, heat: g.heat, players_n: g.players.length, has_mood: !!g.mood });
   }, []);
   /** Stats for the card on screen (ids and where it came from; never the text). */
+  const ctx = () => ({ game: "tod", heat, group: useGame.getState().group, guest: !useAuth.getState().email });
   const shown = (d: Card) => {
     shownAt.current = Date.now();
-    track("card_shown", { game: "tod", card_id: d.id, type: d.type, heat, source: d.source, turn_n: ++turnsShown.current });
+    track("card_shown", { ...ctx(), card_id: d.id, type: d.type, source: d.source, turn_n: ++turnsShown.current });
   };
   const ended = (name: "card_skip" | "card_done") => {
-    if (card) track(name, { game: "tod", card_id: card.id, type: card.type, source: card.source, ms_on_card: Date.now() - shownAt.current });
+    if (card) track(name, { ...ctx(), card_id: card.id, type: card.type, source: card.source, ms_on_card: Date.now() - shownAt.current });
   };
   useEffect(() => { setCard(null); }, [heat]);
 
