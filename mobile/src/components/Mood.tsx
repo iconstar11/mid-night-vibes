@@ -73,23 +73,20 @@ export function MoodSheet({ open, onClose }: { open: boolean; onClose: () => voi
   // Picking a mood is customizing with AI: guests go to sign in first
   const choose = (m: string) => (email ? apply(m) : signInFor(m));
   const showMood = usePrefs((p) => p.showMood);
-  // Hidden: blur what's typed on the web, dots on phones, and don't highlight which preset is picked
-  const hiddenInput = showMood ? null : Platform.OS === "web" ? ({ filter: "blur(5px)" } as object) : null;
   return (
     <Sheet open={open} onClose={onClose} tone="light">
       <Text style={[st.h, { color: c.ink }]} accessibilityRole="header">What's the mood?</Text>
       <TextInput value={text} onChangeText={setText} onSubmitEditing={() => choose(text)} maxLength={200}
         autoFocus={Platform.OS === "web"} returnKeyType="done" placeholder="e.g. kissing, anniversary, getting to know you" placeholderTextColor={c.muted}
-        secureTextEntry={!showMood && Platform.OS !== "web"}
-        style={[st.input, { borderColor: c.line, backgroundColor: c.surface, color: c.ink }, hiddenInput]} />
+        style={[st.input, { borderColor: c.line, backgroundColor: c.surface, color: c.ink }]} />
       <View style={st.showRow}>
-        <Text style={[st.showLabel, { color: c.muted }]}>Mood on screen</Text>
+        <Text style={[st.showLabel, { color: c.muted }]}>Mood on the game screens</Text>
         <Seg<"hide" | "show"> value={showMood ? "show" : "hide"} onChange={(v) => setShowMood(v === "show")} accent={c.rose}
           options={[["hide", "Hidden"], ["show", "Visible"]]} />
       </View>
       <View style={st.chips}>
         {GROUPS[group].moods.map((m) => (
-          <Chip key={m} label={m} selected={showMood && text.trim().toLowerCase() === m.toLowerCase()} onPress={() => { setText(m); choose(m); }} />
+          <Chip key={m} label={m} selected={text.trim().toLowerCase() === m.toLowerCase()} onPress={() => { setText(m); choose(m); }} />
         ))}
       </View>
       {!email ? (

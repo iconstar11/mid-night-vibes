@@ -73,9 +73,9 @@ export function ProfileSettings() {
 
       <View style={[st.rule, { backgroundColor: c.line }]} />
       <View>
-        <Label>Mood on screen</Label>
+        <Label>Mood on the game screens</Label>
         <Seg<"hide" | "show"> value={showMood ? "show" : "hide"} onChange={(v) => { setShowMood(v === "show"); run(Promise.resolve("")); }} accent={c.rose} options={[["hide", "Hidden"], ["show", "Visible"]]} />
-        <Fine style={{ textAlign: "left", marginTop: 6 }}>Hidden blurs the mood you pick (and keeps it from people watching a live game). Saved on this device.</Fine>
+        <Fine style={{ textAlign: "left", marginTop: 6 }}>Hidden blurs the mood on the game screens and Home (and keeps it from people watching a live game). You still see it while choosing it. Saved on this device.</Fine>
       </View>
       <View>
         <Label>Anonymous game stats</Label>

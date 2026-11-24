@@ -13,6 +13,7 @@ import { OFFERS, cardCurrency, manageBilling, payByCard, payByMpesa, waitForPaym
 import { peekPending, type PendingReason } from "@/lib/pending";
 import { useProfile } from "@/lib/profile";
 import { track } from "@/lib/track";
+import { APP_VERSION } from "@/lib/version";
 import { ensureSession, supabase, supabaseReady } from "@/lib/supabase";
 import { font, useColors } from "@/theme/tokens";
 
@@ -76,6 +77,7 @@ function AccountScreen() {
           </Animated.View>
         )
       )}
+      <Fine style={{ marginTop: 12, opacity: 0.6 }}>Midnight Vibes · {APP_VERSION}</Fine>
     </Screen>
   );
 }
