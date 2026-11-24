@@ -7,6 +7,7 @@ import Svg, { Path } from "react-native-svg";
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { AdultOnly } from "@/components/Guard";
+import { LegalLinks } from "@/components/LegalPage";
 import { ProfileSettings } from "@/components/ProfileSettings";
 import { Icon, Row, Section, Value } from "@/components/SettingsList";
 import { Btn, Fine, Label, RoundBtn, Screen, Seg } from "@/components/ui";
@@ -74,6 +75,7 @@ function AccountScreen() {
           </Animated.View>
         )
       )}
+      <LegalLinks />
       <Text style={[st.version, { color: c.muted }]}>MIDNIGHT VIBES · {APP_VERSION.toUpperCase()}</Text>
     </Screen>
   );

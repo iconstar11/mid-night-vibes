@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { useGame } from "@/state/store";
 import { font, useColors } from "@/theme/tokens";
+import { LegalLinks } from "./LegalPage";
 import { Btn, Fine, Screen, Title } from "./ui";
 
 /** The gate itself, also shown to people who open a live-room link. */
@@ -30,6 +31,7 @@ export function GateView({ onConfirm, lead }: { onConfirm: () => void; lead?: st
         <Btn label="I'm 18 or older" onPress={() => { confirm(); onConfirm(); }} />
         <Btn kind="quiet" label="I'm under 18" onPress={() => setBlocked(true)} />
         <Fine>For consenting adults. Every dare is optional.</Fine>
+        <LegalLinks />
       </View>
     </Screen>
   );
