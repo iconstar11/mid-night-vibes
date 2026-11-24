@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /report
+Disallow: /r/
+Disallow: /go/
+
+Sitemap: https://midnightvibes.online/sitemap.xml

@@ -38,7 +38,7 @@ const SECTIONS: LegalSection[] = [
   {
     h: "Premium",
     body: [
-      "Premium gives more AI moods each day and extra features. The plans, prices and what they include are shown in the app before you pay. Prices are in Kenyan shillings (KES) and payments are handled by Paystack.",
+      "Premium gives more AI moods each day and extra features. The plans, prices and what they include are shown in the app before you pay. The currency you'll be charged in is shown before you pay, and payments are handled by Paystack.",
       [
         "Party pass: one payment for a fixed number of days. It does not renew.",
         "Monthly and Yearly by card: renew automatically at the end of each period until you cancel. Cancel any time in Account → \"Update card or cancel renewal\". Premium then stays on until the end of the period you paid for.",
@@ -74,7 +74,7 @@ const SECTIONS: LegalSection[] = [
     h: "No guarantees, and limits on our responsibility",
     body: [
       "We work to keep Midnight Vibes available and safe, but we provide it \"as is\": it may sometimes be unavailable, change, or contain mistakes.",
-      "As far as the law allows, we are not responsible for what players choose to do during a game, or for indirect losses. If we are found responsible for something, our total responsibility is limited to the amount you paid us in the 12 months before. Nothing in these terms removes rights you have under Kenyan consumer law.",
+      "As far as the law allows, we are not responsible for what players choose to do during a game, or for indirect losses. If we are found responsible for something, our total responsibility is limited to the amount you paid us in the 12 months before. Nothing in these terms removes rights you have under the consumer laws where you live.",
     ],
   },
   {
@@ -86,7 +86,7 @@ const SECTIONS: LegalSection[] = [
   {
     h: "Changes and the law",
     body: [
-      "We may update these terms. The date at the top shows the latest version, and we will tell you in the app or by email about important changes. These terms are governed by the laws of Kenya.",
+      "We may update these terms. The date at the top shows the latest version, and we will tell you in the app or by email about important changes. These terms are governed by the laws of Kenya, where Midnight Vibes is run, without taking away any protection the laws where you live give you.",
       `Questions about these terms: ${CONTACT}.`,
     ],
   },

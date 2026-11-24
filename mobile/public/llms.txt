@@ -1,0 +1,17 @@
+# Midnight Vibes
+
+> Free party games for adults (18+) that run in the browser at https://midnightvibes.online: Truth or Dare, Spin the Wheel and the Wheel of Misfortune, for couples, friends, girls' night and boys' night. No download and no sign-up needed.
+
+- Play on one phone, passed around the group. Each group type (couple, friends, girls, boys) has its own cards.
+- Heat levels: Flirty, Steamy and Spicy. The heat can rise slowly as the game goes on; players can undo it or switch it off.
+- Type a mood and an AI writes cards and wheel sections for it, or paste your own list of dares to make a wheel.
+- Drinks are optional. Every truth, dare and forfeit is optional and players can skip at any time.
+- Free to play as a guest; a free account unlocks AI moods and live games (others follow the game on their phones through a link). A Premium plan is coming soon.
+- Contact: hello@midnightvibes.online
+
+## Pages
+
+- [Play Midnight Vibes](https://midnightvibes.online/): the welcome page, with an FAQ
+- [Terms of use](https://midnightvibes.online/terms)
+- [Privacy policy](https://midnightvibes.online/privacy)
+- [Refund policy](https://midnightvibes.online/refunds)

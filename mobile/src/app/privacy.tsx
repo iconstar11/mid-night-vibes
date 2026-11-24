@@ -4,7 +4,7 @@ const SECTIONS: LegalSection[] = [
   {
     h: "Who is responsible",
     body: [
-      `Midnight Vibes is run by ${OPERATOR}, which is responsible for your personal data under Kenya's Data Protection Act, 2019. Contact: ${CONTACT}.`,
+      `Midnight Vibes is run by ${OPERATOR}, which is responsible for your personal data. We follow the data protection laws that apply to us, including Kenya's Data Protection Act, 2019, where the app is run. Contact: ${CONTACT}.`,
     ],
   },
   {
@@ -37,7 +37,7 @@ const SECTIONS: LegalSection[] = [
   {
     h: "Who helps us run the app",
     body: [
-      "These services process data for us, only for the purposes above. Some of them store or process data outside Kenya, with safeguards such as contracts and encryption.",
+      "These services process data for us, only for the purposes above. Some of them store or process data in other countries, with safeguards such as contracts and encryption.",
       [
         "Supabase: database, sign-in and server functions.",
         "Cloudflare: hosting the website.",
@@ -68,8 +68,8 @@ const SECTIONS: LegalSection[] = [
   {
     h: "Your rights",
     body: [
-      "Under Kenya's Data Protection Act you can ask to see the personal data we hold about you, correct it, delete it, get a copy, or object to how we use it. You can also turn off game stats at any time in Account.",
-      `To make a request, email ${CONTACT} from the email address on your account. We reply within 30 days. If you're unhappy with our answer, you can complain to the Office of the Data Protection Commissioner (odpc.go.ke).`,
+      "Wherever you live, you can ask to see the personal data we hold about you, correct it, delete it, get a copy, or object to how we use it. You can also turn off game stats at any time in Account.",
+      `To make a request, email ${CONTACT} from the email address on your account. We reply within 30 days. If you're unhappy with our answer, you can complain to the data protection authority where you live, or to Kenya's Office of the Data Protection Commissioner (odpc.go.ke).`,
     ],
   },
   {

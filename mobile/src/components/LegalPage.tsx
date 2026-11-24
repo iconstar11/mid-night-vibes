@@ -6,7 +6,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { RoundBtn, Screen } from "@/components/ui";
 import { font, useColors } from "@/theme/tokens";
 
-export const OPERATOR = "Midnight Vibes (midnightvibes.online), based in Kenya";
+export const OPERATOR = "Midnight Vibes (midnightvibes.online)";
 export const CONTACT = "hello@midnightvibes.online";
 export const UPDATED = "24 November 2026";
 
@@ -47,13 +47,13 @@ export function LegalPage({ title, intro, sections, here }: { title: string; int
 
       <View style={{ gap: 6 }}>
         <Text style={[st.kicker, { color: c.brass }]}>LAST UPDATED {UPDATED.toUpperCase()}</Text>
-        <Text style={[st.title, { color: c.ink }]} accessibilityRole="header">{title}</Text>
+        <Text style={[st.title, { color: c.ink }]} role="heading" aria-level={1}>{title}</Text>
         <Text style={[st.p, { color: c.muted }]}>{intro}</Text>
       </View>
 
       {sections.map((s, i) => (
         <View key={s.h} style={[st.card, { backgroundColor: c.surface, borderColor: c.line }]}>
-          <Text style={[st.h, { color: c.ink }]} accessibilityRole="header">{i + 1}. {s.h}</Text>
+          <Text style={[st.h, { color: c.ink }]} role="heading" aria-level={2}>{i + 1}. {s.h}</Text>
           {s.body.map((b, j) =>
             typeof b === "string" ? (
               <Text key={j} style={[st.p, { color: c.ink }]} selectable>{b}</Text>

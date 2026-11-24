@@ -34,7 +34,7 @@ const SECTIONS: LegalSection[] = [
   },
   {
     h: "Your rights",
-    body: ["This policy doesn't take away any rights you have under Kenyan consumer law."],
+    body: ["This policy doesn't take away any rights you have under the consumer laws where you live."],
   },
 ];
 
