@@ -14,7 +14,7 @@ import { aiCardId } from "../_shared/cardId.ts";
 import { GROUPS, HEAT, PAIRS, SYSTEM, TASKS, type TaskName } from "../_shared/prompt.ts";
 
 // AI limits per plan live in the plan_limits table (guest / free / premium): ai_moods_per_day moods per window_days
-const CALLS_PER_MOOD = 4; // hidden cost guard: a mood makes ~2-3 calls (cards, wheel, top-ups)
+const CALLS_PER_MOOD = 5; // hidden cost guard: a mood makes ~2-4 calls (cards, wheel, misfortune, top-ups)
 const LIMIT_MESSAGE: Record<string, string> = {
   guest: "Sign in to customize with AI.",
   free: "You've used your free AI mood. It's back in 2 days, or go Premium for 100 a day.",
@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     const raw = await req.text();
     if (raw.length > 2000) throw new Error("too large");
     const body = JSON.parse(raw);
-    task = body.game === "wheel" ? "wheel" : "tod";
+    task = body.game === "wheel" ? "wheel" : body.game === "misfortune" ? "misfortune" : "tod";
     newMood = body.newMood === true; // the app sets this on the first call for a mood
     if (Array.isArray(body.likes)) {
       likes = body.likes.filter((x: unknown): x is string => typeof x === "string").slice(0, 5).map((x: string) => x.trim().slice(0, 200)).filter(Boolean);
@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
   const t = TASKS[task];
   const isGroup = !audience.startsWith("couple");
   // Groups: ask for a few spares, because the consent filter below may drop some
-  const spare = isGroup ? (task === "wheel" ? "\nWrite 12 wedges instead of 8." : "\nWrite 8 truths and 10 dares instead.") : "";
+  const spare = isGroup ? (task === "tod" ? "\nWrite 8 truths and 10 dares instead." : "\nWrite 12 wedges instead of 8.") : "";
   // Premium: cards in the spirit of ones they starred (built-in card text only, never anything they typed)
   const liked = likes.length
     ? `\n\nThese players loved these cards. Write new ones in the same spirit and style (don't repeat them), with the same heat and rules:\n${likes.map((l) => `- ${l}`).join("\n")}`
@@ -262,7 +262,7 @@ async function chatCompletions(
 // Safety net for group games, whatever the model: physical contact must go to a willing, matched player.
 // "{target}" is filled by the app with someone both sides are into; anything else touching a fixed or random
 // person (e.g. "kiss the player on your left") is dropped. "your partner" makes no sense in a group.
-const CONTACT = /\b(kiss|kisses|kissing|lips|touch|caress|stroke|massage|lap|neck|collarbone|cuddle|embrace|hug|grind|straddle|undress)\b/i;
+const CONTACT = /\b(kiss|kisses|kissing|lips|touch|caress|stroke|massage|lap|neck|collarbone|cuddle|embrace|hug|grind|straddle|undress|spank|spanks|spanking)\b/i;
 const CONSENTED = /\{target\}|willing|up for it|if they agree|with their consent/i;
 const CRUDE = /\b(lick|licks|licking|spit|tongue)\b/i;
 

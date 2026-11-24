@@ -121,7 +121,7 @@ function snapshot(): Snapshot {
     mood: usePrefs.getState().showMood ? g.mood : "", aiState: g.ai.state, ...hostView,
     wheelMode: usePrefs.getState().wheelMode,
     wedges: usePrefs.getState().wheelMode === "misfortune"
-      ? misfortuneWheel(g.group === "couple" ? "couple" : "group", usePrefs.getState().drinks)
+      ? misfortuneWheel(g.group === "couple" ? "couple" : "group", usePrefs.getState().drinks, g.aiMisfortune)
       : g.wedges(),
   };
 }

@@ -3,7 +3,7 @@
 import { ensureSession, supabase, supabaseReady } from "./supabase";
 
 export type AiRequest = {
-  game: "tod" | "wheel";
+  game: "tod" | "wheel" | "misfortune";
   vibe: string;
   heat: number;
   group: string;

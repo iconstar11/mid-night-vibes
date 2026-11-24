@@ -226,3 +226,13 @@ describe("wheel of misfortune", () => {
     expect(cleanProps({ mode: "misfortune" })).toEqual({ mode: "misfortune" });
   });
 });
+
+describe("misfortune wheel identity", () => {
+  it("gives the same array for the same inputs (the wheel redraws on a new array)", () => {
+    expect(misfortuneWheel("couple", true)).toBe(misfortuneWheel("couple", true));
+    const ai: [string, string[]][] = Array.from({ length: 8 }, (_, i) => [`AI ${i}`, [`forfeit ${i}`]]);
+    expect(misfortuneWheel("couple", true, ai)).toBe(misfortuneWheel("couple", true, ai));
+    expect(misfortuneWheel("couple", false, ai)).toBe(ai);
+    expect(misfortuneWheel("couple", true, ai).slice(-2)).toEqual(MISFORTUNE_DRINKS);
+  });
+});

@@ -10,7 +10,7 @@ import { Timer } from "@/components/Timer";
 import { WheelModeSheet } from "@/components/WheelModeSheet";
 import { Wheel, type WheelHandle } from "@/components/Wheel";
 import { Fine, GameBar, Screen, Seg } from "@/components/ui";
-import { WHEELS, misfortuneWheel } from "@/game/content";
+import { MISFORTUNE_DRINKS, WHEELS, misfortuneWheel } from "@/game/content";
 import { fillTarget } from "@/game/match";
 import { durationOf } from "@/game/timer";
 import type { Wedge } from "@/game/types";
@@ -46,7 +46,14 @@ function Game() {
   const seenMisfortune = usePrefs((p) => p.misfortuneSeen);
   const [modeOpen, setModeOpen] = useState(false);
   const misfortune = mode === "misfortune";
-  const target: Wedge[] = misfortune ? misfortuneWheel(deck, drinks) : aiWheel?.length ? aiWheel : WHEELS[deck];
+  const aiMisfortune = useGame((g) => g.aiMisfortune);
+  const ensureMisfortune = useGame((g) => g.ensureMisfortune);
+  const mood = useGame((g) => g.mood);
+  useEffect(() => { if (misfortune && mood) ensureMisfortune(); }, [misfortune, mood]); // eslint-disable-line react-hooks/exhaustive-deps
+  // AI forfeits for the mood when there are some (drink wedges still swap in), otherwise the built-in ones
+  const misWheel = misfortuneWheel(deck, drinks, aiMisfortune);
+  const aiMis = aiMisfortune?.length ? misWheel : null;
+  const target: Wedge[] = misfortune ? misWheel : aiWheel?.length ? aiWheel : WHEELS[deck];
   const pickMode = (m: WheelMode) => {
     if (m === mode || spinning || result) return;
     setPrefs({ wheelMode: m });
@@ -107,7 +114,7 @@ function Game() {
     const w = shown[win];
     const s = useGame.getState();
     const raw = wedgeText(w[1], heat);
-    const ai = !misfortune && shown === aiWheel;
+    const ai = misfortune ? !!aiMis && shown === aiMis && !MISFORTUNE_DRINKS.includes(w) : shown === aiWheel;
     const r = { label: w[0], text: fillTarget(raw, current(s), s.players), ai, id: ai ? aiCardId(raw) : cardId(raw), source: (ai ? "ai" : prefer.includes(win) ? "top" : "deck") as CardSource };
     setResult(r);
     shownAt.current = Date.now();
@@ -132,7 +139,7 @@ function Game() {
             <Text style={[st.helpText, { color: c.ink }]}>?</Text>
           </Pressable>
         </View>
-        {!misfortune && <MoodBar onPress={() => setMoodOpen(true)} />}
+        <MoodBar onPress={() => setMoodOpen(true)} />
         <View style={st.center}>
           <Wheel ref={wheel} wedges={shown} hi={hi} disabled={spinning || !!result} onRequestSpin={spin} theme={misfortune ? "misfortune" : "spin"} />
           <Fine>{misfortune ? "Spin if you dare. Bad luck lands on whoever's turn it is." : "Tap Spin, or flick the wheel with your finger."}</Fine>

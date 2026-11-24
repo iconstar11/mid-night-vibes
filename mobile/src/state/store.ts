@@ -8,6 +8,7 @@ import { localMood } from "@/game/mood";
 import { WHEELS } from "@/game/content";
 import type { Card, CardType, GroupId, Heat, PairId, Player, Sex, Wedge } from "@/game/types";
 import { AiLimitError, askAI } from "@/lib/ai";
+import { usePrefs } from "@/lib/prefs";
 import { recentStarredTexts } from "@/lib/stars";
 import { supabase } from "@/lib/supabase";
 
@@ -30,6 +31,12 @@ type State = {
   ai: { state: AiState; tod: Record<CardType, string[]> | null; wheel: Wedge[] | null; note: string; limited: boolean };
   /** Set from the account: Premium players get an occasional "Picked for you" card from their stars. */
   premium: boolean;
+  /** AI-written Wheel of Misfortune forfeits for the current mood (null until asked for / when none). */
+  aiMisfortune: Wedge[] | null;
+  /** What aiMisfortune was written for (mood|heat|group), so a change fetches new ones. */
+  aiMisfortuneFor: string;
+  /** Ask the AI for Misfortune forfeits around the mood (only when that wheel is in use). */
+  ensureMisfortune(): void;
   /** True once the saved game (18+ confirmation, players, mood…) has been read back from the device. */
   hydrated: boolean;
 
@@ -68,7 +75,8 @@ export const useGame = create<State>((set, get) => {
   async function loadMood(isNew = false) {
     const id = ++aiReq;
     const { mood, heat, group, pair, players } = get();
-    set({ ai: { state: mood ? "loading" : "off", tod: null, wheel: null, note: "", limited: false } });
+    set({ ai: { state: mood ? "loading" : "off", tod: null, wheel: null, note: "", limited: false }, aiMisfortune: null, aiMisfortuneFor: "" });
+    if (usePrefs.getState().wheelMode === "misfortune") loadMisfortune();
     if (!mood) return;
     // Guests don't get AI: the mood still steers the built-in cards
     const user = supabase ? (await supabase.auth.getSession()).data.session?.user : null;
@@ -111,6 +119,26 @@ export const useGame = create<State>((set, get) => {
     tailoring = false;
   }
 
+  /** AI Misfortune forfeits: only fetched when that wheel is in use and a signed-in player set a mood. */
+  let misfortuneLoading = "";
+  async function loadMisfortune() {
+    const { mood, heat, group, pair, players, aiMisfortuneFor } = get();
+    const key = `${mood}|${heat}|${group}`;
+    if (!mood || key === aiMisfortuneFor || key === misfortuneLoading) return;
+    const user = supabase ? (await supabase.auth.getSession()).data.session?.user : null;
+    if (!user || user.is_anonymous) return; // guests use the built-in forfeits
+    misfortuneLoading = key;
+    try {
+      const j = await askAI({ game: "misfortune", vibe: mood, heat, group, pair, players: players.length });
+      const wedges = j.wedges?.map((x): Wedge => [x.label, [x.text]]) ?? null;
+      if (`${get().mood}|${get().heat}|${get().group}` === key) set({ aiMisfortune: wedges?.length ? wedges : null, aiMisfortuneFor: key });
+    } catch {
+      // Limit reached or AI unreachable: the built-in forfeits are used
+      if (`${get().mood}|${get().heat}|${get().group}` === key) set({ aiMisfortune: null, aiMisfortuneFor: key });
+    }
+    misfortuneLoading = "";
+  }
+
   async function topUp() {
     const { ai, mood, heat, group, pair, players } = get();
     if (ai.state !== "ready" || topping || !ai.tod) return;
@@ -137,6 +165,9 @@ export const useGame = create<State>((set, get) => {
     mood: "",
     ai: { state: "off", tod: null, wheel: null, note: "", limited: false },
     premium: false,
+    aiMisfortune: null,
+    aiMisfortuneFor: "",
+    ensureMisfortune: () => { loadMisfortune(); },
     hydrated: false,
 
     confirmAdult: () => set({ adult: true }),

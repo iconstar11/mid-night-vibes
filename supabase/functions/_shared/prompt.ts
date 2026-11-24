@@ -80,6 +80,47 @@ export const TASKS = {
       return wedges.length >= 6 ? { wedges } : null;
     },
   },
+  misfortune: {
+    ask: "Write 8 wedges for a \"Wheel of Misfortune\": bad luck for the player it lands on, as playful forfeits around the mood. " +
+      "For this wheel only, mild and harmless discomfort is fine: biting a lemon, a small taste of chilli or hot sauce (always add \"Skip if you can't have it.\"), " +
+      "an ice cube, a playful spank (always add \"You can say stop.\", and in a group only by {target} \"if you're both up for it\"), staying silent, being a servant for a turn, " +
+      "a funny embarrassing performance, losing an item of clothing at the higher heat levels. Nothing that really hurts, no alcohol, nothing with people outside the game. " +
+      "Each wedge has a short label of 1 or 2 words (at most 12 characters, like \"Lemon\") and the forfeit: one sentence of at most 22 words. Make the 8 wedges varied.",
+    schema: {
+      type: "object",
+      properties: {
+        wedges: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { label: { type: "string" }, text: { type: "string" } },
+            required: ["label", "text"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["wedges"],
+      additionalProperties: false,
+    },
+    clean(out: any) {
+      let wedges = (Array.isArray(out.wedges) ? out.wedges : [])
+        .map((w: any) => ({ label: String(w.label ?? "").trim().slice(0, 16), text: misfortuneSafety(String(w.text ?? "")) }))
+        .filter((w: { label: string; text: string }) => w.label && w.text)
+        .slice(0, 8);
+      if (wedges.length % 2) wedges = wedges.slice(0, -1);
+      return wedges.length >= 6 ? { wedges } : null;
+    },
+  },
 };
+
+/** Food forfeits always offer a way out; spanks always say they can be stopped (whatever the model wrote). */
+function misfortuneSafety(text: string): string {
+  let t = text.trim();
+  if (/\b(chill?i|hot sauce|pepper|lemon|lime|wasabi|mustard|garlic|onion|vinegar)\b/i.test(t) && !/skip if/i.test(t)) {
+    t = t.replace(/[.!]*$/, ". Skip if you can't have it.");
+  }
+  if (/\bspank/i.test(t) && !/say stop|up for it/i.test(t)) t = t.replace(/[.!]*$/, ". You can say stop.");
+  return t;
+}
 
 export type TaskName = keyof typeof TASKS;

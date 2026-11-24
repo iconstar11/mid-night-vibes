@@ -519,8 +519,22 @@ export const MISFORTUNE_DRINKS: Wedge[] = [
  ["Pour up", ["Top up everyone's glass.", "Choose someone to take a sip with you.", "Everyone drinks, you pick who goes first."]],
 ];
 
-/** The misfortune wheel for a deck, with the drink wedges swapped in when drinks are on. Always 8 wedges. */
-export function misfortuneWheel(deck: "couple" | "group", drinks: boolean): Wedge[] {
- const base = MISFORTUNE[deck];
- return drinks ? [...base.slice(0, base.length - MISFORTUNE_DRINKS.length), ...MISFORTUNE_DRINKS] : base;
+/** The misfortune wheel: AI forfeits for the mood when there are some, else the built-in ones for the deck,
+ *  with the drink wedges swapped in when drinks are on. Cached, so the same inputs give the same array
+ *  (the wheel redraws whenever it gets a new array). */
+const misfortuneCache = new Map<string, Wedge[]>();
+const aiIds = new WeakMap<Wedge[], number>();
+let nextAiId = 1;
+export function misfortuneWheel(deck: "couple" | "group", drinks: boolean, ai?: Wedge[] | null): Wedge[] {
+ const base = ai?.length ? ai : MISFORTUNE[deck];
+ if (!drinks) return base;
+ if (ai?.length && !aiIds.has(ai)) aiIds.set(ai, nextAiId++);
+ const key = `${ai?.length ? "ai" + aiIds.get(ai) : deck}`;
+ let w = misfortuneCache.get(key);
+ if (!w) {
+  w = [...base.slice(0, base.length - MISFORTUNE_DRINKS.length), ...MISFORTUNE_DRINKS];
+  if (misfortuneCache.size > 20) misfortuneCache.clear();
+  misfortuneCache.set(key, w);
+ }
+ return w;
 }
