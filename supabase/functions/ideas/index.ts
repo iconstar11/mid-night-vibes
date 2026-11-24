@@ -58,16 +58,18 @@ Deno.serve(async (req) => {
   // Same validation as legacy/server.js
   let task: TaskName = "tod", vibe = "", heat = 1, pair = "any", who = PAIRS.any, audience = "any", newMood = false;
   let likes: string[] = []; // Premium "Picked for you": built-in cards they starred
+  let fill = 0; // the vibe is the players' own list: write only this many more wedges
   try {
     const raw = await req.text();
-    if (raw.length > 2000) throw new Error("too large");
+    if (raw.length > 5000) throw new Error("too large");
     const body = JSON.parse(raw);
     task = body.game === "wheel" ? "wheel" : body.game === "misfortune" ? "misfortune" : "tod";
     newMood = body.newMood === true; // the app sets this on the first call for a mood
     if (Array.isArray(body.likes)) {
       likes = body.likes.filter((x: unknown): x is string => typeof x === "string").slice(0, 5).map((x: string) => x.trim().slice(0, 200)).filter(Boolean);
     }
-    vibe = String(body.vibe ?? "").trim().slice(0, 200);
+    vibe = String(body.vibe ?? "").trim().slice(0, 1500); // a theme, a request, or a pasted list
+    fill = task !== "tod" && Number.isInteger(body.fill) ? Math.min(Math.max(body.fill, 0), 5) : 0;
     heat = [1, 2, 3].includes(body.heat) ? body.heat : 1;
     pair = Object.hasOwn(PAIRS, body.pair) ? body.pair : "any";
     const n = Math.min(Math.max(parseInt(body.players, 10) || 3, 2), 12);
@@ -98,7 +100,7 @@ Deno.serve(async (req) => {
   }
 
   // Popular moods: reuse one of a few saved results (never for personal "Picked for you" cards)
-  const key = [task, vibe.toLowerCase().replace(/\s+/g, " "), heat, audience].join("|");
+  const key = [task, vibe.toLowerCase().replace(/\s+/g, " "), heat, audience, fill || ""].join("|");
   const { data: cached } = likes.length ? { data: null } : await admin.from("ai_cache").select("variant,payload").eq("key", key);
   if (cached && cached.length >= CACHE_VARIANTS) {
     const pick = cached[Math.floor(Math.random() * cached.length)];
@@ -108,12 +110,19 @@ Deno.serve(async (req) => {
   const t = TASKS[task];
   const isGroup = !audience.startsWith("couple");
   // Groups: ask for a few spares, because the consent filter below may drop some
-  const spare = isGroup ? (task === "tod" ? "\nWrite 8 truths and 10 dares instead." : "\nWrite 12 wedges instead of 8.") : "";
+  const spare = isGroup ? (task === "tod" ? "\nWrite 8 truths and 10 dares instead." : "\nIf you're writing the default 8 wedges, write 10 instead (the app may remove some).") : "";
   // Premium: cards in the spirit of ones they starred (built-in card text only, never anything they typed)
   const liked = likes.length
     ? `\n\nThese players loved these cards. Write new ones in the same spirit and style (don't repeat them), with the same heat and rules:\n${likes.map((l) => `- ${l}`).join("\n")}`
     : "";
-  const job: Job = { task, userText: `Players: ${who}\nHeat level: ${HEAT[heat]}\nMood: ${vibe || "no particular mood, surprise us"}\n\n${t.ask}${spare}${liked}` };
+  const job: Job = fill
+    ? {
+      task,
+      userText: `Players: ${who}\nHeat level: ${HEAT[heat]}\nThe players wrote these wedges themselves:\n${vibe}\n\n` +
+        `${t.ask}\nBut here, write exactly ${fill} NEW wedge${fill > 1 ? "s" : ""} to go with theirs (don't repeat or reword their wedges): ` +
+        `concrete actions in the same spirit, at the heat level above, each one complete on its own.`,
+    }
+    : { task, userText: `Players: ${who}\nHeat level: ${HEAT[heat]}\nMood: ${vibe || "no particular mood, surprise us"}\n\n${t.ask}${spare}${liked}` };
 
   const active = PROVIDERS.filter((p) => p.enabled());
   if (!active.length) return send(503, { error: "AI ideas aren't set up: add an AI provider key as a Supabase secret." });

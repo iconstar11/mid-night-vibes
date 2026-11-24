@@ -11,10 +11,12 @@ import { PrivateMood } from "@/components/PrivateText";
 import { LiveBadge } from "@/components/LiveBadge";
 import { ShareRoom } from "@/components/ShareRoom";
 import { Sheet } from "@/components/Sheet";
-import { Btn, Fine, Label, Press, Screen } from "@/components/ui";
+import { Icon } from "@/components/SettingsList";
+import { Btn, Fine, Press, Screen } from "@/components/ui";
 import { GROUPS } from "@/game/content";
 import type { Heat } from "@/game/types";
 import { useAuth } from "@/lib/auth";
+import { usePrefs } from "@/lib/prefs";
 import { useInstall } from "@/lib/install";
 import { host } from "@/lib/room";
 import { useGame } from "@/state/store";
@@ -35,6 +37,7 @@ function Games() {
   const players = useGame((g) => g.players);
   const heat = useGame((g) => g.heat);
   const setHeat = useGame((g) => g.setHeat);
+  const heatRise = usePrefs((p) => p.heatRise);
   const mood = useGame((g) => g.mood);
   const aiState = useGame((g) => g.ai.state);
   const [moodOpen, setMoodOpen] = useState(false);
@@ -55,7 +58,6 @@ function Games() {
           <View style={{ flexShrink: 1 }}>
           <Text style={[st.brand, { color: c.ink }]}>
             Midnight <Text style={{ color: c.wine, fontFamily: font.displayItalic }}>Vibes</Text>
-            <Text style={[st.badge, { color: c.rose }]}>  {GROUPS[group].name.toUpperCase()}</Text>
           </Text>
           <View style={{ alignSelf: "flex-start" }}><LiveBadge /></View>
           </View>
@@ -70,16 +72,20 @@ function Games() {
               </Press>
             )}
             <Press onPress={() => setShareOpen(true)} scale={0.92} accessibilityRole="button" accessibilityLabel="Play together: share a live room"
-              style={[st.share, { borderColor: c.line, backgroundColor: c.surface }]}>
+              style={[st.share, { borderColor: c.line, backgroundColor: c.surface, boxShadow: `0 6px 16px ${c.plum}22` }]}>
               <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={c.ink} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <Circle cx={18} cy={5} r={2.6} /><Circle cx={6} cy={12} r={2.6} /><Circle cx={18} cy={19} r={2.6} />
                 <Path d="M8.3 10.8 15.7 6.2M8.3 13.2l7.4 4.6" />
               </Svg>
             </Press>
             <Press onPress={() => router.push("/account")} scale={0.92} accessibilityRole="button" accessibilityLabel={email ? "Account" : "Sign in or create an account"}
-              style={[st.share, { borderColor: email ? c.rose : c.line, backgroundColor: email ? c.rose : c.surface }]}>
+              style={email ? { boxShadow: `0 6px 16px ${c.plum}33`, borderRadius: 22 } : [st.share, { borderColor: c.line, backgroundColor: c.surface, boxShadow: `0 6px 16px ${c.plum}22` }]}>
               {email ? (
-                <Text style={[st.initial, { color: c.onAccent }]}>{(name || email)[0].toUpperCase()}</Text>
+                <LinearGradient colors={[c.brass, mix(c.brass, "#FFF5F3", 0.45), c.brass]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.ring}>
+                  <View style={[st.avatar, { backgroundColor: c.wine }]}>
+                    <Text style={[st.initial, { color: c.onAccent }]}>{(name || email)[0].toUpperCase()}</Text>
+                  </View>
+                </LinearGradient>
               ) : (
                 <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={c.ink} strokeWidth={2} strokeLinecap="round">
                   <Circle cx={12} cy={8.5} r={3.8} /><Path d="M4.5 20c1.4-3.6 4.2-5.4 7.5-5.4s6.1 1.8 7.5 5.4" />
@@ -89,6 +95,8 @@ function Games() {
           </View>
         </View>
 
+        <View style={{ gap: 6 }}>
+        <Text style={[st.kicker, { color: c.brass }]}>✦  TONIGHT · {GROUPS[group].name.toUpperCase()}</Text>
         <Text style={[st.hello, { color: c.ink }]}>
           Hey,{" "}
           <Text onPress={() => router.push(group === "couple" ? "/couple" : "/players")} accessibilityRole="button" accessibilityLabel="Change players"
@@ -96,39 +104,49 @@ function Games() {
             {joinNames(players.map((p) => p.name))}<Text style={{ fontSize: 20, color: c.muted }}> ✎</Text>
           </Text>. What are we playing?
         </Text>
+        </View>
 
         <View>
-          <Label>How hot tonight?</Label>
-          <View style={[st.heat, { borderColor: c.line, backgroundColor: c.surface }]} accessibilityRole="radiogroup">
+          <Text style={[st.head, { color: c.muted }]}>How hot tonight?</Text>
+          <View style={[st.heat, { borderColor: c.line, backgroundColor: c.surface, boxShadow: `inset 0 2px 6px ${c.plum}26` }]} accessibilityRole="radiogroup">
             {HEAT_NAMES.map((h, i) => {
               const on = heat === i + 1;
               return (
                 <Pressable key={h} onPress={() => setHeat((i + 1) as Heat)} accessibilityRole="radio" accessibilityState={{ selected: on }}
-                  style={[st.heatBtn, on && { backgroundColor: c.rose }]}>
+                  style={[st.heatBtn, on && { backgroundColor: c.rose, boxShadow: `0 6px 16px ${c.rose}55` }]}>
                   <Text style={[st.heatText, { color: on ? c.onAccent : c.muted }]}>{h}</Text>
                   <Text style={[st.flames, { color: on ? c.onAccent : c.muted }]}>{FLAMES[i]}</Text>
                 </Pressable>
               );
             })}
           </View>
+          {heatRise !== false && heat < 3 && (
+            <View style={st.riseRow}>
+              <Icon name="rise" color={c.muted} size={14} width={2} />
+              <Text style={[st.riseText, { color: c.muted }]}>Starts here and rises as you play</Text>
+            </View>
+          )}
         </View>
 
         <View style={st.games}>
           <Animated.View entering={FadeInDown.duration(380)} style={st.half}>
-            <Press onPress={() => router.push("/tod")} style={st.gameWrap} accessibilityRole="button" accessibilityLabel="Truth or Dare">
+            <Press onPress={() => router.push("/tod")} style={[st.gameWrap, { borderColor: c.brass + "38", boxShadow: `0 18px 36px ${c.plum}55` }]} accessibilityRole="button" accessibilityLabel="Truth or Dare">
               <LinearGradient colors={[c.plum, mix(c.plum, "#000000", 0.3)]} start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 1 }} style={st.game}>
+                <View style={[st.glow, { backgroundColor: c.rose + "22" }]} pointerEvents="none" />
                 <View style={st.artCards}>
                   <View style={[st.cardBack, { backgroundColor: c.rose }]} />
                   <View style={[st.cardFront, { backgroundColor: c.onAccent }]}><Text style={[st.q, { color: c.plum }]}>?</Text></View>
                 </View>
+                <Text style={[st.gameKicker, { color: c.brass }]}>CARDS</Text>
                 <Text style={[st.gameName, { color: c.onAccent }]}>Truth or Dare</Text>
                 <Text style={[st.gameSub, { color: c.onAccent }]}>Take turns: answer honestly or do the dare.</Text>
               </LinearGradient>
             </Press>
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(70).duration(380)} style={st.half}>
-            <Press onPress={() => router.push("/wheel")} style={st.gameWrap} accessibilityRole="button" accessibilityLabel="Spin the Wheel">
+            <Press onPress={() => router.push("/wheel")} style={[st.gameWrap, { borderColor: c.brass + "38", boxShadow: `0 18px 36px ${c.wine}55` }]} accessibilityRole="button" accessibilityLabel="Spin the Wheel">
               <LinearGradient colors={[c.wine, mix(c.wine, c.plum, 0.35)]} start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 1 }} style={st.game}>
+                <View style={[st.glow, { backgroundColor: c.brass + "1F" }]} pointerEvents="none" />
                 <Svg width={120} height={120} viewBox="-60 -60 120 120" style={st.artWheel}>
                   <Circle r={58} fill={c.brass} />
                   <G>{Array.from({ length: 8 }, (_, i) => {
@@ -136,21 +154,26 @@ function Games() {
                     return <Path key={i} d={`M0 0 L${r * Math.cos(a0)} ${r * Math.sin(a0)} A${r} ${r} 0 0 1 ${r * Math.cos(a1)} ${r * Math.sin(a1)} Z`} fill={[c.rose, c.plum, c.onAccent, c.plum][i % 4]} />;
                   })}</G>
                 </Svg>
+                <Text style={[st.gameKicker, { color: c.brass }]}>WHEEL</Text>
                 <Text style={[st.gameName, { color: c.onAccent }]}>Spin the Wheel</Text>
                 <Text style={[st.gameSub, { color: c.onAccent }]}>Spin and do whatever it lands on.</Text>
               </LinearGradient>
             </Press>
           </Animated.View>
-          <Animated.View entering={FadeInDown.delay(140).duration(380)} style={{ width: "100%" }}>
-            <Press onPress={() => setMoodOpen(true)} style={[st.moodTile, { backgroundColor: c.surface, borderColor: mood ? c.brass + "99" : c.line }]} accessibilityRole="button">
-              <View style={[st.spark, { backgroundColor: c.brass }]}><Spark size={24} color={c.onAccent} /></View>
+          <Animated.View entering={FadeInDown.delay(140).duration(380)} style={{ width: "100%", gap: 8, marginTop: 10 }}>
+            <Text style={[st.head, { color: c.muted }]}>Mood</Text>
+            <Press onPress={() => setMoodOpen(true)} style={[st.moodTile, { backgroundColor: c.surface, borderColor: mood ? c.brass + "99" : c.line, boxShadow: `0 10px 28px ${c.plum}22` }]} accessibilityRole="button">
+              <LinearGradient colors={[c.brass, mix(c.brass, c.wine, 0.35)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.spark}><Spark size={22} color={c.onAccent} /></LinearGradient>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[st.moodName, { color: c.ink }]} numberOfLines={1}>{mood ? <>Mood: <PrivateMood text={mood} peekable={false} /></> : "Set the mood"}</Text>
                 <Text style={[st.moodSub, { color: c.muted }]}>
-                  {!mood ? 'AI tailors both games to it, like "kissing".' : aiState === "loading" ? "AI is writing cards and wedges…" : aiState === "ready" ? "Both games are tailored to it." : "AI isn't reachable, so the built-in deck is used."}
+                  {!mood ? 'AI tailors both games to it, like "kissing".' : aiState === "loading" ? "AI is writing cards and wedges…" : aiState === "ready" ? "Both games are tailored to it." : aiState === "own" ? "Your own list is on the wheel and in the dares." : "AI isn't reachable, so the built-in deck is used."}
                 </Text>
               </View>
-              <Text style={[st.moodGo, { color: c.rose }]}>{mood ? "Change" : "Set"}</Text>
+              <View style={st.moodGoRow}>
+                <Text style={[st.moodGo, { color: c.rose }]}>{mood ? "Change" : "Set"}</Text>
+                <Icon name="chevron" color={c.rose} size={16} width={2.2} />
+              </View>
             </Press>
           </Animated.View>
         </View>
@@ -193,20 +216,27 @@ function InstallGuide({ kind, onClose }: { kind: null | "ios-guide" | "safari-ne
 const st = StyleSheet.create({
   bar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, minHeight: 44 },
   brand: { fontFamily: font.display, fontSize: 25, flexShrink: 1 },
-  badge: { fontFamily: font.heavy, fontSize: 11, letterSpacing: 1.2 },
+  kicker: { fontFamily: font.heavy, fontSize: 11, letterSpacing: 1.5 },
+  riseRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8, paddingHorizontal: 6 },
+  riseText: { fontFamily: font.body, fontSize: 12.5 },
+  head: { fontFamily: font.heavy, fontSize: 11.5, letterSpacing: 1.4, textTransform: "uppercase", marginBottom: 8, paddingHorizontal: 6 },
+  ring: { width: 44, height: 44, borderRadius: 22, padding: 2 },
+  avatar: { flex: 1, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   hdr: { flexDirection: "row", alignItems: "center", gap: 8 },
   share: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   initial: { fontFamily: font.heavy, fontSize: 17 },
   install: { height: 44, paddingLeft: 12, paddingRight: 16, borderRadius: 999, flexDirection: "row", alignItems: "center", gap: 6, shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 6 } },
   installText: { fontFamily: font.heavy, fontSize: 14 },
-  hello: { fontFamily: font.display, fontSize: 37, lineHeight: 39 },
+  hello: { fontFamily: font.display, fontSize: 37, lineHeight: 42 },
   heat: { flexDirection: "row", gap: 4, borderRadius: 999, borderWidth: 1.5, padding: 4 },
   heatBtn: { flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 999 },
   heatText: { fontFamily: font.semibold, fontSize: 15.5 },
   flames: { fontSize: 9, letterSpacing: 2, opacity: 0.85 },
   games: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   half: { width: "47.9%", flexGrow: 1 },
-  gameWrap: { borderRadius: 26, overflow: "hidden" },
+  gameWrap: { borderRadius: 28, borderCurve: "continuous", borderWidth: 1, overflow: "hidden" },
+  glow: { position: "absolute", width: 200, height: 200, borderRadius: 100, top: -90, left: -70 },
+  gameKicker: { fontFamily: font.heavy, fontSize: 10.5, letterSpacing: 1.5, marginBottom: 2 },
   game: { minHeight: 210, padding: 18, justifyContent: "flex-end", gap: 4, overflow: "hidden" },
   gameName: { fontFamily: font.display, fontSize: 28, lineHeight: 29 },
   gameSub: { fontFamily: font.body, fontSize: 13.5, lineHeight: 18, opacity: 0.85 },
@@ -215,9 +245,10 @@ const st = StyleSheet.create({
   cardFront: { position: "absolute", width: 70, height: 88, borderRadius: 12, alignItems: "center", justifyContent: "center", transform: [{ rotate: "8deg" }] },
   q: { fontFamily: font.displayItalic, fontSize: 38 },
   artWheel: { position: "absolute", top: 14, right: -22 },
-  moodTile: { flexDirection: "row", alignItems: "center", gap: 14, padding: 18, borderRadius: 26, borderWidth: 1.5 },
-  spark: { width: 52, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  moodName: { fontFamily: font.display, fontSize: 24 },
+  moodTile: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 22, borderCurve: "continuous", borderWidth: 1 },
+  spark: { width: 46, height: 46, borderRadius: 14, borderCurve: "continuous", alignItems: "center", justifyContent: "center" },
+  moodGoRow: { flexDirection: "row", alignItems: "center", gap: 2 },
+  moodName: { fontFamily: font.display, fontSize: 23, lineHeight: 28 },
   moodSub: { fontFamily: font.body, fontSize: 13.5 },
   moodGo: { fontFamily: font.heavy, fontSize: 12.5, letterSpacing: 1, textTransform: "uppercase" },
   guideH: { fontFamily: font.display, fontSize: 32 },

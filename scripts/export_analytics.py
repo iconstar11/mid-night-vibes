@@ -12,8 +12,10 @@ Privacy: the events table never holds names, emails, gender, typed moods or card
 user ids are replaced by salted hashes here, so the workbook can't be tied back to an account.
 AI card text comes from the ai_cards table: as the AI wrote it, with {target} placeholders, no names.
 
-The "Instagram posts" sheet is yours: fill it in by hand. Re-running the export keeps it as it is
-and refreshes every other sheet. The export also writes data/card-stats.json, which
+Social media: the "Posts" sheet is yours (one row per post, see scripts/social.py). Put the platform
+exports from TikTok Studio, Meta Business Suite and YouTube Studio in data/social/ and re-run: their numbers
+are matched to your posts. Re-running keeps Posts as you typed it (a copy of the last workbook is kept as
+*.bak.xlsx) and refreshes every other sheet. The export also writes data/card-stats.json, which
 cards_to_excel.py uses to suggest top picks and list AI cards you can add to the deck.
 """
 from __future__ import annotations
@@ -24,7 +26,9 @@ import json
 import os
 import re
 import secrets
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -34,14 +38,12 @@ from dotenv import load_dotenv
 from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import social  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 TZ = "Africa/Nairobi"
-IG_SHEET = "Instagram posts"
-IG_COLUMNS = [
-    "ref", "date", "url", "format (reel/carousel/story/post)", "angle / hook", "game featured", "caption length",
-    "reach", "likes", "comments", "saves", "shares", "profile visits", "link taps", "follows",
-]
 
 # Combined score: each play is worth 3 for a star, 1 for Done, -1 for a Skip; averaged per play and pulled
 # towards the overall average until a card has PRIOR_PLAYS plays (a Bayesian average), so luck can't win.
@@ -88,7 +90,7 @@ def top_pick_ids() -> set[str]:
     return set(re.findall(r'"(c-[0-9a-z]+)"', (ROOT / "mobile/src/game/topPicks.ts").read_text(encoding="utf8")))
 
 
-def demo_data(n_users: int = 500, seed: int = 7) -> tuple[pd.DataFrame, pd.DataFrame]:
+def demo_data(n_users: int = 500, seed: int = 7, post_refs: pd.Series | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Plausible fake data with real card ids (and some fake AI cards), so every sheet has something to show."""
     rng = np.random.default_rng(seed)
     cards = load_cards()
@@ -109,7 +111,14 @@ def demo_data(n_users: int = 500, seed: int = 7) -> tuple[pd.DataFrame, pd.DataF
         quality[f"ai-demo{i:03d}"] = float(rng.beta(4, 4))
     ai = pd.DataFrame(ai_rows)
 
-    refs = [None] * 6 + ["ig-001", "ig-002", "ig-003", "ig-004", "ig-005"]
+    # Where people came from: about half from a post (more from posts with more views), some from bio links
+    if post_refs is not None and len(post_refs):
+        ref_names = list(post_refs.index) + ["tt-bio", "ig-bio"]
+        w = np.append(post_refs.to_numpy(dtype=float), [post_refs.mean() * 8, post_refs.mean() * 4])
+        ref_names, ref_w = [None] + ref_names, np.append([w.sum()], w)
+    else:
+        ref_names, ref_w = [None, "tt-1", "ig-1"], np.array([6.0, 1, 1])
+    ref_w = ref_w / ref_w.sum()
     start = pd.Timestamp.now(tz="UTC").normalize() - pd.Timedelta(days=42)
     rows = []
     for u in range(n_users):
@@ -127,7 +136,7 @@ def demo_data(n_users: int = 500, seed: int = 7) -> tuple[pd.DataFrame, pd.DataF
             def add(name, props, clock=clock, uid=uid, sid=sid):
                 rows.append({"at": clock[0].isoformat(), "user_id": uid, "session_id": sid, "name": name, "props": props})
 
-            add("session_start", {"ref": refs[rng.integers(len(refs))] if s == 0 else None, "platform": "web", "installed": bool(rng.random() < 0.15)})
+            add("session_start", {"ref": ref_names[rng.choice(len(ref_names), p=ref_w)] if s == 0 else None, "platform": "web", "installed": bool(rng.random() < 0.15)})
             if rng.random() < 0.25:
                 continue
             group = str(rng.choice(["couple", "friends", "girls", "boys"], p=[0.55, 0.25, 0.12, 0.08]))
@@ -146,6 +155,9 @@ def demo_data(n_users: int = 500, seed: int = 7) -> tuple[pd.DataFrame, pd.DataF
                     if rng.random() < 0.3:
                         signed_up = True
                         add("signup", {"method": str(rng.choice(["email", "google"], p=[0.4, 0.6])), "from": "turns"})
+                        if rng.random() < 0.7:
+                            add("found_via", {"found": str(rng.choice(["tiktok", "instagram", "facebook", "youtube", "friend", "search", "other"],
+                                                                      p=[0.35, 0.2, 0.1, 0.12, 0.15, 0.05, 0.03]))})
                     break
                 if mood and len(ai_pool) and rng.random() < 0.6:
                     card = ai_pool.sample(1, random_state=int(rng.integers(1e9))).iloc[0]
@@ -338,6 +350,30 @@ def by_ref(ev: pd.DataFrame) -> pd.DataFrame:
     return out.rename_axis("ref").reset_index().sort_values("visitors", ascending=False)
 
 
+def heat_rises(ev: pd.DataFrame) -> pd.DataFrame:
+    """Each automatic heat rise ("heat rises over time"), whether players undid it, and the skip rate in the
+    10 finished cards before and after it. Use it to tune the rule in mobile/src/game/heatRise.ts
+    (6 turns / 2 per player, 6 minutes, 70% done): many undos or a skip rate that jumps after a rise = rising too early."""
+    cols = ["at", "user", "group", "from", "to", "turns_at_level", "minutes", "comfort", "players", "undone", "skip_rate_before", "skip_rate_after"]
+    ups = ev[ev["name"] == "heat_up"]
+    if ups.empty:
+        return pd.DataFrame(columns=cols)
+    ends = ev[ev["name"].isin(["card_done", "card_skip"])]
+    undos = ev[ev["name"] == "heat_undo"]
+    rate = lambda d: round(float((d["name"] == "card_skip").mean()), 2) if len(d) else np.nan
+    rows = []
+    for _, u in ups.iterrows():
+        mine = ends[ends["session_id"] == u["session_id"]]
+        undone = undos[(undos["session_id"] == u["session_id"]) & (undos["at"] >= u["at"]) & (undos["at"] <= u["at"] + pd.Timedelta(minutes=2))]
+        rows.append({
+            "at": u["at"], "user": u["user"], "group": u.get("group"), "from": u.get("from"), "to": u.get("to"),
+            "turns_at_level": u.get("turn_n"), "minutes": u.get("minutes"), "comfort": u.get("comfort"), "players": u.get("players_n"),
+            "undone": not undone.empty,
+            "skip_rate_before": rate(mine[mine["at"] < u["at"]].tail(10)), "skip_rate_after": rate(mine[mine["at"] > u["at"]].head(10)),
+        })
+    return pd.DataFrame(rows, columns=cols)
+
+
 def write_card_stats(allc: pd.DataFrame, path: Path) -> None:
     """For cards_to_excel.py: suggested top picks (top 3 per game/deck/heat with enough plays) and AI card stats."""
     played = allc[allc["shown"] >= SUGGEST_MIN_PLAYS].reset_index().rename(columns={"index": "id"})
@@ -363,44 +399,43 @@ README = [
     ("By group / By heat / Guests vs signed-in / By week", "Each card's numbers split by that one thing. Filter by card_id or text to compare a card across groups, heats, player types or weeks."),
     ("Funnel by day", "Distinct people per day at each step: visitors → started_a_game → played_3_plus → hit_guest_wall → signed_up → returning_users → premium_started."),
     ("Retention", "Rows: week of first visit (cohort). Columns: share of that cohort active N weeks later."),
-    ("By ref", "People grouped by the ?ref= code of their first visit (e.g. ig-011 from an Instagram post)."),
-    ("Instagram posts", "Yours to fill in. Use the same code in ref as in the post's link (midnightvibes.online/?ref=ig-011); visitors and signed_up fill themselves from By ref."),
+    ("By ref", "People grouped by the ref code of their first visit: tt-12 = came from piece 12 on TikTok (short link midnightvibes.online/t/12), ig- Instagram (/i/), fb- Facebook (/f/), yt- YouTube (/y/); tt-bio etc. = the bio link (/tt, /ig, /fb, /yt)."),
+    ("Posts", "Yours: one row per post. Type ref (tt-12), and piece/platform fill themselves on the next export. The grey-headed columns are formulas: views to saves from Social raw, visitors to premium from By ref. engagement rate = (likes+comments+shares)/views."),
+    ("Social raw", "Every post found in the platform exports in data/social/, matched to a ref by the code in the caption, the same link as in Posts, or the post time (within 2 hours). Empty ref = not matched yet: add the post to Posts."),
+    ("Social summary", "Posts, views, engagement rate and sign-ups per 1,000 views by platform, format, time slot, hook, game and how it was posted. Sign-ups per 1k views is the one that matters: it shows which posts bring players."),
+    ("By piece", "The same piece side by side on each platform."),
+    ("Found via", "Answers to 'Where did you find us?' after sign-up, people per week."),
     ("Sessions / Events", "One row per app open / per event, for your own pivot tables."),
 ]
 
 
 # ---------- Write ----------
 
-def write(path: Path, sheets: dict[str, pd.DataFrame], demo: bool) -> None:
+def write(path: Path, sheets: dict[str, pd.DataFrame], posts: pd.DataFrame, demo: bool) -> None:
     path.parent.mkdir(exist_ok=True)
-    keep_ig = path.exists()
-    if keep_ig:
-        wb = load_workbook(path)
-        for name in wb.sheetnames:
-            if name != IG_SHEET:
-                del wb[name]
-        wb.save(path)
-    with pd.ExcelWriter(path, engine="openpyxl", mode="a" if keep_ig else "w", **({"if_sheet_exists": "replace"} if keep_ig else {})) as xl:
+    if path.exists():
+        shutil.copy2(path, path.with_suffix(".bak.xlsx"))  # in case something goes wrong with your Posts rows
+    with pd.ExcelWriter(path, engine="openpyxl") as xl:
         readme = pd.DataFrame(README, columns=["Sheet / field", "Meaning"])
         if demo:
             readme = pd.concat([pd.DataFrame([["DEMO DATA", "Made-up numbers for practice. Run without --demo for real data."]], columns=readme.columns), readme])
         readme.to_excel(xl, sheet_name="README", index=False)
         for name, df in sheets.items():
             df.to_excel(xl, sheet_name=name, index=False)
-        if IG_SHEET not in xl.book.sheetnames:
-            pd.DataFrame(columns=IG_COLUMNS).to_excel(xl, sheet_name=IG_SHEET, index=False)
+        social.write_posts(xl.book.create_sheet(social.POSTS), posts)
 
     wb = load_workbook(path)
     header = PatternFill("solid", fgColor="7A1F3D")
+    formula = PatternFill("solid", fgColor="8A8A8A")
     gold = PatternFill("solid", fgColor="F6E7C1")
     for ws in wb.worksheets:
         for cell in ws[1]:
             cell.font = Font(bold=True, color="FFFFFF")
-            cell.fill = header
+            cell.fill = formula if ws.title == social.POSTS and cell.value in social.COMPUTED else header
         ws.freeze_panes = "B2"
         ws.auto_filter.ref = ws.dimensions
         for col in ws.columns:
-            width = max(len(str(c.value or "")) for c in list(col)[:300])
+            width = max([len(str(c.value or "")) for c in list(col)[:300] if not str(c.value or "").startswith("=")] or [9])
             ws.column_dimensions[col[0].column_letter].width = min(max(9, width + 2), 80)
     for name in ["Truths", "Dares", "Spin the Wheel"]:  # gold rows for the top 10
         ws = wb[name]
@@ -408,15 +443,8 @@ def write(path: Path, sheets: dict[str, pd.DataFrame], demo: bool) -> None:
             if row[1].value is not None:
                 for cell in row:
                     cell.fill = gold
-    ig = wb[IG_SHEET]
-    if ig.cell(1, len(IG_COLUMNS) + 1).value is None:
-        for i, title in enumerate(["visitors (from By ref)", "signed_up (from By ref)"]):
-            col = len(IG_COLUMNS) + 1 + i
-            ig.cell(1, col, title).font = Font(bold=True)
-            for row in range(2, 201):
-                ig.cell(row, col, f'=IF(A{row}="","",IFERROR(VLOOKUP(A{row},\'By ref\'!A:F,{2 if i == 0 else 4},FALSE),0))')
     order = ["README", "Truths", "Dares", "Spin the Wheel", "Top cards", "By group", "By heat", "Guests vs signed-in", "By week",
-             "Funnel by day", "Retention", "By ref", IG_SHEET, "Sessions", "Events"]
+             "Funnel by day", "Retention", "By ref", social.POSTS, "Social summary", "By piece", "Social raw", "Found via", "Sessions", "Events"]
     wb._sheets = [wb[n] for n in order if n in wb.sheetnames] + [s for s in wb.worksheets if s.title not in order]
     wb.save(path)
 
@@ -426,19 +454,31 @@ def main() -> None:
     ap.add_argument("--demo", action="store_true", help="use made-up data (no key needed)")
     args = ap.parse_args()
 
-    raw, ai = demo_data() if args.demo else fetch()
+    out = DATA / ("midnight-vibes-analytics-DEMO.xlsx" if args.demo else "midnight-vibes-analytics.xlsx")
+    if args.demo:
+        posts, exported = social.demo()
+        views = social.match(exported, posts).groupby("ref")["views"].sum()
+        raw, ai = demo_data(post_refs=views)
+    else:
+        posts = social.read_posts(out)
+        exported = social.read_exports(DATA / "social")
+        raw, ai = fetch()
     if raw.empty:
         raise SystemExit("No events yet. Play a few cards on the site, or try --demo.")
     ev = tidy(raw)
     cat = catalog(load_cards(), ai)
     per_type, allc = card_sheets(ev, cat)
+    refs = by_ref(ev)
+    social_raw = social.match(exported, posts) if len(exported) else pd.DataFrame(columns=social.RAW_COLS)
+    per_post = social.per_post(posts, social_raw, refs)
     sheets = {**per_type, "Top cards": top_cards(ev, cat), **breakdowns(ev, cat),
-              "Funnel by day": funnel_by_day(ev), "Retention": retention(ev), "By ref": by_ref(ev),
-              "Sessions": sessions(ev), "Events": ev}
-    out = DATA / ("midnight-vibes-analytics-DEMO.xlsx" if args.demo else "midnight-vibes-analytics.xlsx")
-    write(out, sheets, args.demo)
+              "Funnel by day": funnel_by_day(ev), "Retention": retention(ev), "By ref": refs,
+              "Social summary": social.summary(per_post), "By piece": social.by_piece(per_post), "Social raw": social_raw,
+              "Found via": social.found_via(ev), "Heat rises": heat_rises(ev), "Sessions": sessions(ev), "Events": ev}
+    write(out, sheets, posts, args.demo)
     write_card_stats(allc, DATA / ("card-stats-DEMO.json" if args.demo else "card-stats.json"))
     print(f"{len(ev)} events, {ev['user'].nunique()} people, {len(cat)} cards ({int((allc['shown'] > 0).sum())} played) -> {out.relative_to(ROOT)}")
+    print(f"{len(posts)} posts in Posts, {len(social_raw)} exported posts ({int(social_raw['ref'].notna().sum())} matched to a ref)")
 
 
 if __name__ == "__main__":

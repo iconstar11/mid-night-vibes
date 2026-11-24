@@ -1,4 +1,5 @@
 import { cardId } from "./cards";
+import { INTENSITY } from "./intensity";
 import { COUPLE, EXTRA, GROUP } from "./content";
 import { PROMOTED } from "./promoted";
 import { TOP_PICKS } from "./topPicks";
@@ -45,13 +46,17 @@ function levelledPool(group: GroupId, type: CardType, heat: Heat): { text: strin
 export type Drawn = { text: string; id: string; top: boolean };
 
 /**
- * Shuffled draw piles: no prompt repeats until every prompt at the current heat has come up.
+ * Draw piles: no prompt repeats until every prompt at the current heat has come up.
  * Top picks come first (those at the chosen heat before lower ones), so the first cards are the best.
- * Create a new one when the group or heat changes.
+ * Then the level's cards go from mild to bold (intensity score plus some randomness), so the game builds up;
+ * cards from lower levels turn up at random places in between. Create a new one when the group or heat changes.
  */
 export class Draw {
   private piles: Partial<Record<CardType, Drawn[]>> = {};
-  constructor(private group: GroupId, private heat: Heat, private rand = Math.random, private top: ReadonlySet<string> = TOP_PICKS) {}
+  constructor(
+    private group: GroupId, private heat: Heat, private rand = Math.random, private top: ReadonlySet<string> = TOP_PICKS,
+    private intensity: Readonly<Record<string, number>> = INTENSITY,
+  ) {}
 
   next(type: CardType): Drawn {
     let pile = this.piles[type];
@@ -60,8 +65,11 @@ export class Draw {
       const rest = all.filter((p) => !this.top.has(p.id));
       const topLower = all.filter((p) => this.top.has(p.id) && p.level < this.heat);
       const topHere = all.filter((p) => this.top.has(p.id) && p.level === this.heat);
+      // Mild to bold: this level's cards by intensity ±1.5, lower-level cards anywhere (lowest key is dealt first)
+      const keyed = rest.map((p) => ({ p, k: p.level === this.heat ? (this.intensity[p.id] ?? 3) + this.rand() * 3 - 1.5 : 0.5 + this.rand() * 5 }));
+      keyed.sort((a, b) => b.k - a.k);
       // pop() takes from the end: top picks at this heat first, then lower-heat top picks, then the rest
-      pile = this.piles[type] = [...shuffle(rest, this.rand), ...shuffle(topLower, this.rand), ...shuffle(topHere, this.rand)]
+      pile = this.piles[type] = [...keyed.map((x) => x.p), ...shuffle(topLower, this.rand), ...shuffle(topHere, this.rand)]
         .map(({ text, id }) => ({ text, id, top: this.top.has(id) }));
     }
     return pile.pop()!;

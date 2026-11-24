@@ -6,6 +6,7 @@ import { Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { FoundVia } from "@/components/FoundVia";
 import { trackSessionStart } from "@/lib/track";
 import { useColors } from "@/theme/tokens";
 
@@ -29,6 +30,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StatusBar style={darkUi ? "light" : "dark"} />
         <Stack screenOptions={{ headerShown: false, animation: "fade", contentStyle: { backgroundColor: c.bg } }} />
+        <FoundVia />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

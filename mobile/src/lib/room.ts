@@ -6,14 +6,14 @@ import { create } from "zustand";
 
 import type { Card, GroupId, PairId, Wedge } from "@/game/types";
 import type { SpinPlan } from "@/game/wheel";
-import { type AiState, useGame } from "@/state/store";
+import { type AiState, useGame, wheelFor } from "@/state/store";
 import { ensureSession, supabase } from "./supabase";
-import { misfortuneWheel } from "@/game/content";
 import { usePrefs } from "./prefs";
 import { track } from "./track";
 
 export type Screen = "home" | "tod" | "wheel";
-export type Result = { label: string; text: string; ai: boolean };
+/** `idea`: a suggested truth or dare shown under wedges like Wild card. */
+export type Result = { label: string; text: string; ai: boolean; idea?: string };
 
 /** Everything a viewer needs to draw the host's game. Never includes players' sex or "into" settings. */
 export type Snapshot = {
@@ -120,9 +120,7 @@ function snapshot(): Snapshot {
     // Viewers only get the mood if the host chose to show it on screen
     mood: usePrefs.getState().showMood ? g.mood : "", aiState: g.ai.state, ...hostView,
     wheelMode: usePrefs.getState().wheelMode,
-    wedges: usePrefs.getState().wheelMode === "misfortune"
-      ? misfortuneWheel(g.group === "couple" ? "couple" : "group", usePrefs.getState().drinks, g.aiMisfortune)
-      : g.wedges(),
+    wedges: wheelFor(g, usePrefs.getState().wheelMode, usePrefs.getState().drinks),
   };
 }
 

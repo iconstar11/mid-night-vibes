@@ -13,6 +13,8 @@ export type AiRequest = {
   newMood?: boolean;
   /** Premium "Picked for you": original text of built-in cards they starred (max 5) */
   likes?: string[];
+  /** The vibe is the players' own list: write only this many more wedges to go with it (1-5). */
+  fill?: number;
 };
 
 /** Thrown when today's AI moods for the player's plan are used up. */

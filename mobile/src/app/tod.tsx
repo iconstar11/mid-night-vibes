@@ -5,6 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanima
 import Svg, { Circle, Rect } from "react-native-svg";
 
 import { AdultOnly } from "@/components/Guard";
+import { HeatToast } from "@/components/HeatToast";
 import { MoodBar, MoodSheet } from "@/components/Mood";
 import { CardFace, cardLabel, useCardMotion } from "@/components/TodCard";
 import { StarButton } from "@/components/StarButton";
@@ -36,7 +37,10 @@ function Game() {
   const heat = useGame((g) => g.heat);
   const draw = useGame((g) => g.draw);
   const nextTurn = useGame((g) => g.nextTurn);
+  const recordResult = useGame((g) => g.recordResult);
   const me = current({ players, turn }).name;
+  const myPasses = useGame((g) => g.passes[me] ?? 0);
+  const usePass = useGame((g) => g.usePass);
   const next = nextUp({ players, turn }).name;
 
   const [card, setCard] = useState<Card | null>(null);
@@ -83,6 +87,7 @@ function Game() {
     tap();
     if (card) play("skip"); // Skip: a soft falling note before the next card
     ended("card_skip"); // only when a card was showing (Skip)
+    if (card) recordResult("skip"); // "heat rises over time" reads done vs skipped
     const drawn = draw(type);
     host.card(drawn, false);
     shown(drawn);
@@ -119,7 +124,18 @@ function Game() {
     ended("card_done");
     play("done");
     host.next();
-    await motion.next(() => { nextTurn(); setCard(null); });
+    await motion.next(() => { nextTurn(); recordResult("done"); setCard(null); });
+    setBusy(false);
+  }
+
+  /** A free pass won on the wheel skips this dare and moves on to the next player. */
+  async function passDare() {
+    if (busy || !card || !usePass(me)) return;
+    setBusy(true); tap();
+    track("card_skip", { ...ctx(), card_id: card.id, type: card.type, source: card.source, reason: "pass", ms_on_card: Date.now() - shownAt.current });
+    play("skip");
+    host.next();
+    await motion.next(() => { nextTurn(); recordResult("skip"); setCard(null); });
     setBusy(false);
   }
 
@@ -132,11 +148,16 @@ function Game() {
   return (
     <View style={{ flex: 1 }}>
       <Screen>
-        <GameBar game="Truth or Dare" who={`${me}'s turn`} />
+        <GameBar game="Truth or Dare" who={`${me}'s turn${myPasses ? ` · 🎟 ${myPasses}` : ""}`} />
         <MoodBar onPress={() => setMoodOpen(true)} />
         <CardFace motion={motion} who={who} text={text} kind={kind} shuffling={!!shuffleText}>
           {card && !shuffleText && <StarButton card={card} game="tod" heat={heat} corner />}
           {card && !shuffleText && durationOf(card.text) && <Timer key={card.text} seconds={durationOf(card.text)!} />}
+          {card && !shuffleText && card.type === "dare" && myPasses > 0 && (
+            <Pressable onPress={passDare} disabled={busy} style={[st.pass, { borderColor: c.brass }]} accessibilityRole="button">
+              <Text style={[st.skipText, { color: c.brass }]}>🎟 Use your free pass ({myPasses})</Text>
+            </Pressable>
+          )}
           {card && !shuffleText && (
             <View style={st.onCard}>
               <Pressable onPress={() => reveal(card.type)} disabled={busy} style={[st.skip, { borderColor: c.onAccent + "66" }]} accessibilityRole="button">
@@ -174,6 +195,7 @@ function Game() {
           </View>
         )}
       </Screen>
+      <HeatToast />
       <MoodSheet open={moodOpen} onClose={() => setMoodOpen(false)} />
     </View>
   );
@@ -181,14 +203,15 @@ function Game() {
 
 const st = StyleSheet.create({
   onCard: { flexDirection: "row", gap: 10, marginTop: 18 },
+  pass: { borderWidth: 1.5, borderRadius: 999, paddingVertical: 10, alignItems: "center", marginBottom: 10 },
   skip: { flex: 1, borderWidth: 1.5, borderRadius: 999, paddingVertical: 14, alignItems: "center" },
   skipText: { fontFamily: font.semibold, fontSize: 16 },
   done: { flex: 1.4, borderRadius: 999, paddingVertical: 14, paddingHorizontal: 10, alignItems: "center" },
   doneText: { fontFamily: font.heavy, fontSize: 16 },
   pair: { flexDirection: "row", alignItems: "center", gap: 10 },
-  pick: { borderRadius: 22, paddingVertical: 20, paddingHorizontal: 18, gap: 2 },
+  pick: { borderRadius: 22, paddingVertical: 16, paddingHorizontal: 18, gap: 2 },
   pickSmall: { fontFamily: font.semibold, fontSize: 12, letterSpacing: 1, textTransform: "uppercase", opacity: 0.85 },
-  pickBig: { fontFamily: font.displayItalic, fontSize: 34, lineHeight: 36 },
+  pickBig: { fontFamily: font.displayItalic, fontSize: 34, lineHeight: 42 },
   rand: { width: 68, height: 68, borderRadius: 34, borderWidth: 2, alignItems: "center", justifyContent: "center", gap: 1, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 8 } },
   randText: { fontFamily: font.heavy, fontSize: 10, letterSpacing: 0.8, textTransform: "uppercase" },
 });

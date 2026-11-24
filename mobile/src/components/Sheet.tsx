@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,10 +9,12 @@ import { useColors } from "@/theme/tokens";
 /**
  * Bottom sheet that slides up over the screen and slides down to close.
  * `tone="dark"` is the wine/plum result sheet; `tone="light"` is the page-coloured mood/install sheet.
+ * Never taller than the screen: long content scrolls inside the sheet.
  */
 export function Sheet({ open, onClose, tone = "dark", children }: { open: boolean; onClose: () => void; tone?: "dark" | "light"; children: ReactNode }) {
   const c = useColors();
   const ins = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const [mounted, setMounted] = useState(open);
   const y = useSharedValue(1);
 
@@ -40,11 +42,14 @@ export function Sheet({ open, onClose, tone = "dark", children }: { open: boolea
       <View style={st.dock} pointerEvents="box-none">
         <Animated.View
           accessibilityViewIsModal
-          style={[st.sheet, { backgroundColor: bg, paddingBottom: ins.bottom + 22, paddingLeft: Math.max(22, ins.left), paddingRight: Math.max(22, ins.right) }, sheet]}
+          style={[st.sheet, { backgroundColor: bg, maxHeight: height - ins.top - 16, paddingLeft: Math.max(22, ins.left), paddingRight: Math.max(22, ins.right) }, sheet]}
         >
           {tone === "dark" && <View style={[StyleSheet.absoluteFill, st.wash, { backgroundColor: c.wine }]} pointerEvents="none" />}
           <View style={[st.grab, { backgroundColor: tone === "dark" ? c.onAccent + "66" : c.line }]} />
-          {children}
+          <ScrollView style={st.scroll} contentContainerStyle={[st.content, { paddingBottom: ins.bottom + 22 }]}
+            showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bounces={false}>
+            {children}
+          </ScrollView>
         </Animated.View>
       </View>
     </View>
@@ -53,7 +58,9 @@ export function Sheet({ open, onClose, tone = "dark", children }: { open: boolea
 
 const st = StyleSheet.create({
   dock: { position: "absolute", left: 0, right: 0, bottom: 0, alignItems: "center" },
-  sheet: { width: "100%", maxWidth: 440, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingTop: 12, gap: 12, overflow: "hidden" },
+  sheet: { width: "100%", maxWidth: 440, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingTop: 12, overflow: "hidden" },
+  scroll: { flexGrow: 0, flexShrink: 1 },
+  content: { gap: 12 },
   wash: { opacity: 0.55, borderTopLeftRadius: 30, borderTopRightRadius: 30 },
-  grab: { width: 40, height: 5, borderRadius: 9, alignSelf: "center", marginBottom: 8 },
+  grab: { width: 40, height: 5, borderRadius: 9, alignSelf: "center", marginBottom: 20 },
 });

@@ -12,7 +12,7 @@ import { ensureSession, supabase } from "./supabase";
 export type EventName =
   | "session_start" | "game_start" | "card_shown" | "card_skip" | "card_done" | "card_star"
   | "mood_set" | "guest_wall" | "signup" | "signin" | "room_start" | "room_join"
-  | "premium_view" | "checkout_start" | "premium_on";
+  | "premium_view" | "checkout_start" | "premium_on" | "found_via" | "heat_up" | "heat_undo";
 
 const OPT_KEY = "mv.analytics"; // "off" when switched off
 export const useAnalytics = create<{ on: boolean; loaded: boolean }>(() => ({ on: true, loaded: false }));
@@ -67,12 +67,15 @@ if (Platform.OS === "web" && typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); });
 }
 
-/** Opening the app: where they came from (?ref=ig-011 on Instagram links) and how. */
+// The address the app was opened at, read before any screen redirects (the 18+ gate drops the query)
+const START_URL = Platform.OS === "web" && typeof window !== "undefined" ? window.location.href : "";
+
+/** Opening the app: where they came from (?ref=tt-12 from a post's short link like midnightvibes.online/t/12) and how. */
 export function trackSessionStart() {
   let ref: string | null = null;
   let installed = false;
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    ref = new URL(window.location.href).searchParams.get("ref");
+  if (START_URL) {
+    ref = new URL(START_URL).searchParams.get("ref");
     installed = window.matchMedia?.("(display-mode: standalone)").matches ?? false;
   }
   track("session_start", { ref: ref?.replace(/[^a-z0-9-]/gi, "").slice(0, 30) || null, platform: Platform.OS, installed });

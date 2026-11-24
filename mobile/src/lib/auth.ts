@@ -8,6 +8,7 @@ import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
 import { create } from "zustand";
 
+import { askFoundVia } from "@/components/FoundVia";
 import { useGame } from "@/state/store";
 import { takePending } from "./pending";
 
@@ -83,6 +84,7 @@ async function trackSignIn(user: User, wasReady: boolean) {
   const isNew = Date.now() - new Date(user.created_at).getTime() < 10 * 60 * 1000;
   const from = (await peekPending())?.reason ?? null;
   track(isNew ? "signup" : "signin", { method: user.app_metadata?.provider === "google" ? "google" : "email", from });
+  if (isNew) askFoundVia();
 }
 
 let resuming = false;

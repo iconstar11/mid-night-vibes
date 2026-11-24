@@ -3,11 +3,21 @@
 
 export const TAU = 2 * Math.PI;
 
+/** Where each wedge ends, as a share of the turn (0..1, last = 1). Wedges can be different sizes
+ *  (thin "Free pass" / "Spin again" wedges); a plain number means that many equal wedges. */
+export function wedgeEnds(w: number | { 2?: { w?: number } }[]): number[] {
+  const sizes = typeof w === "number" ? Array.from({ length: w }, () => 1) : w.map((x) => Math.max(0.05, x[2]?.w ?? 1));
+  const total = sizes.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  return sizes.map((s) => (acc += s) / total);
+}
+
 /** Index of the wedge under the top pointer when the disc is rotated by `rot`. */
-export function under(rot: number, n: number): number {
+export function under(rot: number, ends: number[]): number {
   "worklet";
-  const a = TAU / n;
-  return Math.floor(((((-Math.PI / 2 - rot) % TAU) + TAU) % TAU) / a) % n;
+  const t = ((((-Math.PI / 2 - rot) % TAU) + TAU) % TAU) / TAU;
+  for (let i = 0; i < ends.length; i++) if (t < ends[i]) return i;
+  return ends.length - 1;
 }
 
 export type SpinPlan = {
@@ -18,10 +28,18 @@ export type SpinPlan = {
   windup: boolean; // small pull-back before a tap spin
 };
 
-/** `prefer`: wedge indexes to land on instead of any wedge (the first spins of a session land on top picks). */
-export function planSpin(n: number, power: number, dir: 1 | -1, windup: boolean, rand = Math.random, prefer: number[] = []): SpinPlan {
+/** `prefer`: wedge indexes to land on instead of any wedge (the first spins of a session land on top picks).
+ *  Otherwise the odds follow the wedge sizes. */
+export function planSpin(ends: number[], power: number, dir: 1 | -1, windup: boolean, rand = Math.random, prefer: number[] = []): SpinPlan {
+  const n = ends.length;
   const ok = prefer.filter((i) => i >= 0 && i < n);
-  const win = ok.length ? ok[Math.floor(rand() * ok.length)] : Math.floor(rand() * n);
+  let win: number;
+  if (ok.length) win = ok[Math.floor(rand() * ok.length)];
+  else {
+    const r = rand();
+    win = ends.findIndex((e) => r < e);
+    if (win < 0) win = n - 1;
+  }
   return { win, f: 0.18 + rand() * 0.64, power: Math.min(Math.max(power, 0), 1), dir, windup };
 }
 
@@ -32,9 +50,9 @@ export const WINDUP_RAD = 0.22;
 export const WINDUP_MS = 200;
 
 /** Where the disc ends up and how long it takes, starting from `start` (after any wind-up). */
-export function spinTarget(start: number, n: number, p: SpinPlan, reduceMotion = false) {
-  const a = TAU / n;
-  const base = -Math.PI / 2 - (p.win + p.f) * a;
+export function spinTarget(start: number, ends: number[], p: SpinPlan, reduceMotion = false) {
+  const from = p.win ? ends[p.win - 1] : 0;
+  const base = -Math.PI / 2 - (from + p.f * (ends[p.win] - from)) * TAU;
   const turns = reduceMotion ? 0 : Math.round(4 + p.power * 4);
   const dist =
     p.dir > 0

@@ -1,18 +1,18 @@
 /// <reference types="jest" />
-import { COUPLE, GROUP, WHEELS } from "@/game/content";
+import { COUPLE, EXTRA, GROUP, WHEELS } from "@/game/content";
 import { cardId } from "@/game/cards";
 import { Draw, poolFor } from "@/game/deck";
 import { TOP_PICKS } from "@/game/topPicks";
 import { fillTarget, into, matchesFor } from "@/game/match";
 import { localMood, moodStems } from "@/game/mood";
 import type { Player } from "@/game/types";
-import { planSpin, spinTarget, under } from "@/game/wheel";
+import { planSpin, spinTarget, under, wedgeEnds } from "@/game/wheel";
 
 describe("content", () => {
-  it("has 15 couple prompts per heat per type and 8 wedges per wheel", () => {
-    for (const t of ["truth", "dare"] as const) COUPLE[t].forEach((l) => expect(l).toHaveLength(15));
-    expect(WHEELS.couple).toHaveLength(8);
-    expect(WHEELS.group).toHaveLength(8);
+  it("has at least 15 couple prompts per heat per type and 7-8 wedges per wheel", () => {
+    for (const t of ["truth", "dare"] as const) COUPLE[t].forEach((l) => expect(l.length).toBeGreaterThanOrEqual(15));
+    expect(WHEELS.couple.length).toBeGreaterThanOrEqual(7);
+    expect(WHEELS.group.length).toBeGreaterThanOrEqual(7);
   });
   it("group dares use {target} for paired dares", () => {
     expect(GROUP.dare.flat().some((d) => d.includes("{target}"))).toBe(true);
@@ -52,7 +52,7 @@ describe("card ids", () => {
   });
   it("every top pick is a real built-in card", () => {
     const all = new Set<string>();
-    for (const d of [COUPLE, GROUP]) for (const t of ["truth", "dare"] as const) d[t].flat().forEach((x) => all.add(cardId(x)));
+    for (const d of [COUPLE, GROUP, ...Object.values(EXTRA)]) for (const t of ["truth", "dare"] as const) d[t].flat().forEach((x) => all.add(cardId(x)));
     for (const g of ["couple", "group"] as const) WHEELS[g].forEach(([, texts]) => texts.forEach((x) => all.add(cardId(x))));
     for (const id of TOP_PICKS) expect(all.has(id)).toBe(true);
   });
@@ -60,8 +60,8 @@ describe("card ids", () => {
 
 describe("wheel top picks", () => {
   it("lands on a preferred wedge when given", () => {
-    for (let i = 0; i < 50; i++) expect([2, 5]).toContain(planSpin(8, 0.5, 1, false, Math.random, [2, 5]).win);
-    expect(planSpin(8, 0.5, 1, false, Math.random, []).win).toBeLessThan(8);
+    for (let i = 0; i < 50; i++) expect([2, 5]).toContain(planSpin(wedgeEnds(8), 0.5, 1, false, Math.random, [2, 5]).win);
+    expect(planSpin(wedgeEnds(8), 0.5, 1, false, Math.random, []).win).toBeLessThan(8);
   });
 });
 
@@ -105,13 +105,32 @@ describe("wheel", () => {
   it("always lands on the planned wedge, in the planned direction", () => {
     let bad = 0;
     for (let k = 0; k < 20000; k++) {
-      const n = k % 2 ? 8 : 6;
+      // equal wedges (6, 8, odd 7, 15) and mixed sizes with thin wedges
+      const ends = k % 4 === 0 ? wedgeEnds(8) : k % 4 === 1 ? wedgeEnds(7) : k % 4 === 2 ? wedgeEnds(15)
+        : wedgeEnds([["a", []], ["b", [], { w: 0.35 }], ["c", []], ["d", []], ["e", [], { w: 0.35 }], ["f", []]] as never);
       const start = (Math.random() - 0.5) * 200;
-      const p = planSpin(n, Math.random(), Math.random() < 0.5 ? 1 : -1, false);
-      const { end } = spinTarget(start, n, p);
-      if (under(end, n) !== p.win || Math.sign(end - start) !== p.dir) bad++;
+      const p = planSpin(ends, Math.random(), Math.random() < 0.5 ? 1 : -1, false);
+      const { end } = spinTarget(start, ends, p);
+      if (under(end, ends) !== p.win || Math.sign(end - start) !== p.dir) bad++;
     }
     expect(bad).toBe(0);
+  });
+  it("the real thin wedges land about 2-3% of the time each on an 8-wedge wheel", () => {
+    const w = spinWheel("couple");
+    const ends = wedgeEnds(w);
+    const pass = w.findIndex((x) => x[2]?.kind === "pass");
+    let hits = 0;
+    for (let k = 0; k < 10000; k++) if (planSpin(ends, 0.5, 1, false).win === pass) hits++;
+    expect(hits / 10000).toBeGreaterThan(0.015);
+    expect(hits / 10000).toBeLessThan(0.035); // 0.2 / 8.4 = 2.4%
+  });
+  it("thin wedges come up about as often as their size", () => {
+    const ends = wedgeEnds([["a", []], ["pass", [], { w: 0.35 }], ["b", []], ["c", []], ["again", [], { w: 0.35 }], ["d", []], ["e", []], ["f", []]] as never);
+    const hits = Array(8).fill(0);
+    for (let k = 0; k < 20000; k++) hits[planSpin(ends, 0.5, 1, false).win]++;
+    const share = (i: number) => hits[i] / 20000;
+    expect(share(1)).toBeGreaterThan(0.04); expect(share(1)).toBeLessThan(0.07); // 0.35 / 6.7 = 5.2%
+    expect(share(0)).toBeGreaterThan(0.13); expect(share(0)).toBeLessThan(0.17); // 1 / 6.7 = 14.9%
   });
 });
 
@@ -207,13 +226,18 @@ describe("wheel of misfortune", () => {
       }
     }
   });
-  it("drinks swap two wedges and keep 8", () => {
+  it("drinks swap two wedges, and both thin wedges are added", () => {
     for (const deck of ["couple", "group"] as const) {
       const w = misfortuneWheel(deck, true);
-      expect(w).toHaveLength(8);
-      expect(w.slice(-2)).toEqual(MISFORTUNE_DRINKS);
-      expect(misfortuneWheel(deck, false)).toBe(MISFORTUNE[deck]);
+      expect(w).toHaveLength(10);
+      for (const d of MISFORTUNE_DRINKS[deck]) expect(w).toContain(d);
+      expect(w.filter((x) => x[2]?.kind === "pass")).toHaveLength(1);
+      expect(w.filter((x) => x[2]?.kind === "again")).toHaveLength(1);
+      expect(misfortuneWheel(deck, false)).toHaveLength(10);
     }
+  });
+  it("couple drink forfeits never talk about everyone or a group", () => {
+    for (const [, texts] of MISFORTUNE_DRINKS.couple) texts.forEach((t) => expect(t).not.toMatch(/everyone|someone|group/i));
   });
   it("food and touch forfeits say how to opt out", () => {
     const all = [...MISFORTUNE.couple, ...MISFORTUNE.group];
@@ -224,6 +248,7 @@ describe("wheel of misfortune", () => {
   });
   it("stats may record which wheel", () => {
     expect(cleanProps({ mode: "misfortune" })).toEqual({ mode: "misfortune" });
+    expect(cleanProps({ found: "tiktok" })).toEqual({ found: "tiktok" });
   });
 });
 
@@ -232,7 +257,100 @@ describe("misfortune wheel identity", () => {
     expect(misfortuneWheel("couple", true)).toBe(misfortuneWheel("couple", true));
     const ai: [string, string[]][] = Array.from({ length: 8 }, (_, i) => [`AI ${i}`, [`forfeit ${i}`]]);
     expect(misfortuneWheel("couple", true, ai)).toBe(misfortuneWheel("couple", true, ai));
-    expect(misfortuneWheel("couple", false, ai)).toBe(ai);
-    expect(misfortuneWheel("couple", true, ai).slice(-2)).toEqual(MISFORTUNE_DRINKS);
+    expect(misfortuneWheel("couple", false, ai)).toBe(misfortuneWheel("couple", false, ai));
+    for (const d of MISFORTUNE_DRINKS.couple) expect(misfortuneWheel("couple", true, ai)).toContain(d);
+  });
+});
+
+import { glossParts } from "@/game/glossary";
+import { listItems, ownWheel } from "@/game/ownWheel";
+import { wheelFor } from "@/game/pickWheel";
+import { spinWheel } from "@/game/content";
+
+describe("word meanings", () => {
+  const words = (t: string) => glossParts(t).filter((p) => typeof p !== "string").map((p) => (p as { word: string }).word);
+  it("finds whole words and phrases only", () => {
+    expect(words("Give a playful spank on the bum.")).toEqual(["spank", "bum"]);
+    expect(words("Say a 'never have I ever'.")).toEqual(["never have I ever"]);
+    expect(words("A bumpy ride")).toEqual([]); // not "bum" inside a word
+  });
+  it("keeps the text the same when put back together", () => {
+    const t = "Do your best catwalk, then a cheeky impression of the lads.";
+    expect(glossParts(t).map((p) => (typeof p === "string" ? p : p.word)).join("")).toBe(t);
+  });
+});
+
+describe("own wheel from a list", () => {
+  it("reads lines, numbers, bullets and semicolons", () => {
+    expect(listItems("Kiss my neck\nDance for me\nSing a song")).toEqual(["Kiss my neck", "Dance for me", "Sing a song"]);
+    expect(listItems("1. Kiss\n2) Hug\n3. Dance")).toEqual(["Kiss", "Hug", "Dance"]);
+    expect(listItems("- a\n• b\n* c")).toEqual(["a", "b", "c"]);
+    expect(listItems("kiss; hug; dance")).toEqual(["kiss", "hug", "dance"]);
+    expect(listItems("1. kiss 2. hug 3. dance")).toEqual(["kiss", "hug", "dance"]);
+    expect(listItems("kissing and cuddles")).toBeNull();
+  });
+  it("short lists count too: two lines, two ;-items, or one bulleted item", () => {
+    expect(listItems("Kiss my neck\nDance for me")).toEqual(["Kiss my neck", "Dance for me"]);
+    expect(listItems("kiss; hug")).toEqual(["kiss", "hug"]);
+    expect(listItems("1. Kiss my neck slowly")).toEqual(["Kiss my neck slowly"]);
+    expect(listItems("- Lap dance")).toEqual(["Lap dance"]);
+    expect(listItems("a romantic night in")).toBeNull(); // one plain sentence is a mood
+  });
+  it("keeps the players' words, labels them, and allows up to 16", () => {
+    const w = ownWheel(Array.from({ length: 20 }, (_, i) => `Dare number ${i + 1} for tonight`).join("\n"))!;
+    expect(w).toHaveLength(16);
+    expect(w[0][1]).toEqual(["Dare number 1 for tonight"]);
+    expect(w[0][0].length).toBeLessThanOrEqual(12);
+    expect(ownWheel("Ice: Ice cube down the back\nLemon: Bite a lemon\nSip: Take a sip")![0][0]).toBe("Ice");
+  });
+});
+
+describe("which wheel shows", () => {
+  const base = { group: "couple" as const, aiMisfortune: null, edited: {}, ai: { state: "off" as const, tod: null, wheel: null, note: "", limited: false } };
+  it("built-in wheels get the thin Free pass and Spin again wedges", () => {
+    const w = wheelFor(base, "spin", false);
+    expect(w).toBe(spinWheel("couple"));
+    expect(w.filter((x) => x[2]?.kind === "pass" || x[2]?.kind === "again")).toHaveLength(2);
+  });
+  it("the players' own list is used exactly, with nothing added", () => {
+    const own = ownWheel("a dare\nb dare\nc dare")!;
+    expect(wheelFor({ ...base, ai: { ...base.ai, state: "own", wheel: own } }, "misfortune", true)).toBe(own);
+  });
+  it("hand-edited wedges win", () => {
+    const edited = ownWheel("x\ny\nz")!;
+    expect(wheelFor({ ...base, edited: { spin: edited } }, "spin", false)).toBe(edited);
+  });
+});
+
+
+import { WHEEL_SIZE, drawPool, fillWedges } from "@/game/content";
+
+describe("built-in wheel pools", () => {
+  const pool = Array.from({ length: 20 }, (_, i): [string, string[]] => [`W${i}`, [`a${i}`, `b${i}`, `c${i}`]]);
+  it("draws 8 different wedges, the same for the same seed", () => {
+    const a = drawPool(pool, WHEEL_SIZE, 0.42);
+    expect(a).toHaveLength(8);
+    expect(new Set(a.map((w) => w[0])).size).toBe(8);
+    expect(drawPool(pool, WHEEL_SIZE, 0.42)).toEqual(a);
+    expect(drawPool(pool, WHEEL_SIZE, 0.77)).not.toEqual(a);
+  });
+  it("small pools are shown whole", () => {
+    expect(drawPool(pool.slice(0, 5), WHEEL_SIZE, 0.3)).toHaveLength(5);
+  });
+});
+
+describe("filling a short pasted list", () => {
+  it("adds plain built-in dares at the chosen heat, never the 'their call' kind or a repeat", () => {
+    const add = fillWedges("couple", "spin", 2, 3, 0.5, ["Kiss"]);
+    expect(add).toHaveLength(3);
+    for (const w of add) {
+      expect(w[2]?.fill).toBe(true);
+      expect(w[1]).toHaveLength(1);
+      expect(w[0]).not.toBe("Kiss");
+      const src = WHEELS.couple.find((x) => x[0] === w[0])!;
+      expect(src[2]?.kind).toBeUndefined();
+      expect(w[1][0]).toBe(src[1][1]); // the Steamy text
+    }
+    expect(fillWedges("group", "misfortune", 1, 0, 0.5)).toEqual([]);
   });
 });

@@ -7,6 +7,7 @@ import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withTiming } from "
 
 import { AdultOnly } from "@/components/Guard";
 import { ProfileSettings } from "@/components/ProfileSettings";
+import { Icon, Row, Section, Value } from "@/components/SettingsList";
 import { Btn, Fine, Label, RoundBtn, Screen, Seg } from "@/components/ui";
 import { PLAN_NAMES, aiAllowance, refreshAccount,signIn, signInWithGoogle, signOut, signUp, useAuth } from "@/lib/auth";
 import { OFFERS, cardCurrency, manageBilling, payByCard, payByMpesa, waitForPayment, waitForPremium, type Product } from "@/lib/billing";
@@ -15,7 +16,7 @@ import { useProfile } from "@/lib/profile";
 import { track } from "@/lib/track";
 import { APP_VERSION } from "@/lib/version";
 import { ensureSession, supabase, supabaseReady } from "@/lib/supabase";
-import { font, useColors } from "@/theme/tokens";
+import { font, mix, useColors } from "@/theme/tokens";
 
 export default function Account() {
   return <AdultOnly><AccountScreen /></AdultOnly>;
@@ -54,17 +55,12 @@ function AccountScreen() {
       ) : (
         email ? (
           // Signed in: usage, Premium and sign out (no sign-in form)
-          <Animated.View key="in" entering={FadeIn.duration(250)} style={{ gap: 18 }}>
-            <Text style={[st.hello, { color: c.ink }]}>
-              Hi, <Text style={{ color: c.wine, fontFamily: font.displayItalic }}>{name || email.split("@")[0]}</Text>
-            </Text>
-            <Fine style={{ textAlign: "left", marginTop: -12 }}>{email}</Fine>
+          <Animated.View key="in" entering={FadeIn.duration(250)} style={{ gap: 26 }}>
+            <Hero name={name || email.split("@")[0]} email={email} />
             {paying && <PaidNote state={paying} />}
-            <Usage />
-            <ProfileSettings />
-            <OwnerReportLink />
             {plan === "premium" ? <PremiumActive /> : <Premium />}
-            <Btn kind="quiet" label="Sign out" onPress={signOut} />
+            <ProfileSettings />
+            <AccountRows />
           </Animated.View>
         ) : (
           // Guest: only signing in or creating an account (no usage, no payments)
@@ -77,17 +73,22 @@ function AccountScreen() {
           </Animated.View>
         )
       )}
-      <Fine style={{ marginTop: 12, opacity: 0.6 }}>Midnight Vibes · {APP_VERSION}</Fine>
+      <Text style={[st.version, { color: c.muted }]}>MIDNIGHT VIBES · {APP_VERSION.toUpperCase()}</Text>
     </Screen>
   );
 }
 
-/** Owners only: a way into the weekly report (the server checks again before showing anything). */
-function OwnerReportLink() {
+/** The weekly report (owners only; the server checks again before showing anything) and sign out. */
+function AccountRows() {
+  const c = useColors();
   const [owner, setOwner] = useState(false);
   useEffect(() => { supabase?.rpc("is_owner").then(({ data }) => setOwner(data === true)); }, []);
-  if (!owner) return null;
-  return <Btn kind="quiet" label="Open the weekly report" onPress={() => router.push("/report")} />;
+  return (
+    <Section title="Account">
+      {owner && <Row icon="chart" tint={c.brass} title="Weekly report" detail="Owner only" onPress={() => router.push("/report")} />}
+      <Row icon="logout" tint={mix(c.plum, c.rose, 0.45)} title="Sign out" danger onPress={signOut} />
+    </Section>
+  );
 }
 
 const WHY: Record<PendingReason, string> = {
@@ -97,36 +98,56 @@ const WHY: Record<PendingReason, string> = {
   mood: "Sign in or create a free account to customize with AI. Your mood is saved and will be set for you.",
 };
 
-/** Plan name and AI moods used in the plan's window as a meter. */
-function Usage() {
+/** Who's signed in, their plan, and the AI moods left in the plan's window, on one card. */
+function Hero({ name, email }: { name: string; email: string }) {
   const c = useColors();
   const auth = useAuth();
   const { plan, used, limit } = auth;
   const { left, period, next, unit } = aiAllowance(auth);
   const pct = limit ? Math.min(used / limit, 1) : 1;
   const w = useSharedValue(0);
-  useEffect(() => { w.value = withTiming(pct, { duration: 600 }); }, [pct]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { w.value = withTiming(1 - pct, { duration: 700 }); }, [pct]); // eslint-disable-line react-hooks/exhaustive-deps
   const fill = useAnimatedStyle(() => ({ width: `${w.value * 100}%` }));
+  const premium = plan === "premium";
   return (
-    <View style={[st.card, { backgroundColor: c.surface, borderColor: c.line }]}>
-      <View style={st.row}>
-        <Text style={[st.cardTitle, { color: c.ink }]}>{PLAN_NAMES[plan]}</Text>
-        <View style={[st.badge, { backgroundColor: plan === "premium" ? c.brass : c.rose }]}>
-          <Text style={[st.badgeText, { color: c.onAccent }]}>{plan.toUpperCase()}</Text>
+    <LinearGradient colors={[c.wine, c.plum, mix(c.plum, "#000000", 0.35)]} start={{ x: 0, y: 0 }} end={{ x: 0.85, y: 1 }}
+      style={[st.hero, { boxShadow: `0 22px 48px ${c.plum}55` }]}>
+      <View style={[st.orb, { backgroundColor: c.rose + "2A" }]} pointerEvents="none" />
+      <View style={[st.orb2, { backgroundColor: c.brass + "22" }]} pointerEvents="none" />
+
+      <View style={st.heroTop}>
+        <LinearGradient colors={[c.brass, mix(c.brass, "#FFF5F3", 0.45), c.brass]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.ring}>
+          <View style={[st.avatar, { backgroundColor: c.plum }]}>
+            <Text style={[st.avatarText, { color: c.onAccent }]}>{name.slice(0, 1).toUpperCase()}</Text>
+          </View>
+        </LinearGradient>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[st.heroName, { color: c.onAccent }]} numberOfLines={1}>{name}</Text>
+          <Text style={[st.heroEmail, { color: c.onAccent }]} numberOfLines={1} selectable>{email}</Text>
+          <View style={[st.chip, premium ? { backgroundColor: c.brass } : { borderWidth: 1, borderColor: c.onAccent + "55" }]}>
+            {premium && <Icon name="crown" color={ON_CREAM.ink} size={12} width={2.2} />}
+            <Text style={[st.chipText, { color: premium ? ON_CREAM.ink : c.onAccent }]}>{PLAN_NAMES[plan].toUpperCase()}</Text>
+          </View>
         </View>
       </View>
-      <View style={st.row}>
-        <Text style={[st.meterLabel, { color: c.muted }]}><Text style={{ color: c.brass }}>✦</Text> {limit} {unit} {period}</Text>
-        <Text style={[st.meterLabel, { color: c.ink }]}>{left} left</Text>
+
+      <View style={[st.heroRule, { backgroundColor: c.onAccent + "26" }]} />
+
+      <View style={{ gap: 10 }}>
+        <Text style={[st.kicker, { color: c.brass }]}>✦  {`${unit} ${period}`.toUpperCase()}</Text>
+        <View style={st.statRow}>
+          <Text style={[st.stat, { color: c.onAccent }]}>{left}</Text>
+          <Text style={[st.statOf, { color: c.onAccent }]}>of {limit} left</Text>
+        </View>
+        <View style={[st.track, { backgroundColor: c.onAccent + "22" }]}>
+          <Animated.View style={[st.fill, { backgroundColor: pct >= 1 ? c.rose : c.brass }, fill]} />
+        </View>
+        <Text style={[st.heroNote, { color: c.onAccent }]}>
+          {next ? `Your next AI mood is ready on ${next}. ` : ""}
+          {plan === "free" ? "Premium gets 100 AI moods a day. " : ""}The built-in cards are always unlimited.
+        </Text>
       </View>
-      <View style={[st.track, { backgroundColor: c.line }]}>
-        <Animated.View style={[st.fill, { backgroundColor: pct >= 1 ? c.wine : c.rose }, fill]} />
-      </View>
-      <Fine style={{ textAlign: "left" }}>
-        {next ? `Your next AI mood is ready on ${next}. ` : ""}
-        {plan === "free" ? "Premium gets 100 AI moods a day. " : ""}The built-in cards are always unlimited.
-      </Fine>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -183,7 +204,8 @@ function Premium() {
   }
 
   return (
-    <LinearGradient colors={[c.wine, c.plum]} start={{ x: 0, y: 0 }} end={{ x: 0.7, y: 1 }} style={st.premium}>
+    <LinearGradient colors={[c.wine, c.plum, mix(c.plum, "#000000", 0.35)]} start={{ x: 0, y: 0 }} end={{ x: 0.85, y: 1 }}
+      style={[st.premium, { boxShadow: `0 22px 48px ${c.plum}55`, borderColor: c.brass + "55" }]}>
       <Text style={[st.premiumKicker, { color: c.brass }]}>MIDNIGHT VIBES PREMIUM</Text>
       <Text style={[st.premiumTitle, { color: c.onAccent }]}>More moods, more heat.</Text>
       {PERKS.map((p) => (
@@ -266,19 +288,11 @@ function PremiumActive() {
   const until = premiumUntil ? new Date(premiumUntil).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) : null;
   const label = product === "pass" ? "Party pass" : product === "yearly" ? "Yearly plan" : product === "monthly" ? "Monthly plan" : "Premium";
   return (
-    <LinearGradient colors={[c.wine, c.plum]} start={{ x: 0, y: 0 }} end={{ x: 0.7, y: 1 }} style={st.premium}>
-      <Text style={[st.premiumKicker, { color: c.brass }]}>YOU'RE ON PREMIUM</Text>
-      <Text style={[st.premiumTitle, { color: c.onAccent }]}>{label}</Text>
-      {until && <Text style={[st.perk, { color: c.onAccent }]}>{renews ? "Renews around" : "Ends"} {until}</Text>}
-      {!renews && <Text style={[st.offerNote, { color: c.onAccent }]}>Buy again any time; new days add on to what you have.</Text>}
-      {canManage && (
-        <Pressable onPress={() => manageBilling().catch((e) => setError((e as Error).message))} accessibilityRole="button"
-          style={[st.soon, { borderColor: c.onAccent + "55" }]}>
-          <Text style={[st.soonText, { color: c.onAccent }]}>Update card or cancel renewal</Text>
-        </Pressable>
-      )}
-      {!!error && <Text style={[st.err, { color: c.onAccent }]}>{error}</Text>}
-    </LinearGradient>
+    <Section title="Membership" footer={error || (!renews ? "Buy again any time; new days add on to what you have." : undefined)}>
+      <Row icon="crown" tint={c.brass} title={label} detail="Premium · 100 AI moods a day" />
+      {until && <Row icon="calendar" tint={c.wine} title={renews ? "Renews around" : "Ends"} right={<Value>{until}</Value>} />}
+      {canManage && <Row icon="card" tint={c.plum} title="Update card or cancel renewal" onPress={() => manageBilling().catch((e) => setError((e as Error).message))} />}
+    </Section>
   );
 }
 
@@ -361,9 +375,27 @@ const st = StyleSheet.create({
   badge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999 },
   badgeText: { fontFamily: font.heavy, fontSize: 11, letterSpacing: 1 },
   meterLabel: { fontFamily: font.semibold, fontSize: 15 },
-  track: { height: 10, borderRadius: 5, overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 5 },
-  premium: { borderRadius: 26, padding: 22, gap: 8 },
+  track: { height: 6, borderRadius: 3, overflow: "hidden" },
+  fill: { height: "100%", borderRadius: 3 },
+  premium: { borderRadius: 28, borderCurve: "continuous", borderWidth: 1, padding: 22, gap: 8 },
+  hero: { borderRadius: 28, borderCurve: "continuous", padding: 22, gap: 16, overflow: "hidden" },
+  orb: { position: "absolute", width: 220, height: 220, borderRadius: 110, top: -110, right: -70 },
+  orb2: { position: "absolute", width: 160, height: 160, borderRadius: 80, bottom: -90, left: -50 },
+  heroTop: { flexDirection: "row", alignItems: "center", gap: 14 },
+  ring: { width: 62, height: 62, borderRadius: 31, padding: 2.5 },
+  avatar: { flex: 1, borderRadius: 30, alignItems: "center", justifyContent: "center" },
+  avatarText: { fontFamily: font.display, fontSize: 30, lineHeight: 36 },
+  heroName: { fontFamily: font.display, fontSize: 32, lineHeight: 38 },
+  heroEmail: { fontFamily: font.body, fontSize: 13.5, opacity: 0.72 },
+  chip: { alignSelf: "flex-start", marginTop: 8, flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999 },
+  chipText: { fontFamily: font.heavy, fontSize: 10.5, letterSpacing: 1.2 },
+  heroRule: { height: 1 },
+  kicker: { fontFamily: font.heavy, fontSize: 11, letterSpacing: 1.5 },
+  statRow: { flexDirection: "row", alignItems: "baseline", gap: 8 },
+  stat: { fontFamily: font.display, fontSize: 52, lineHeight: 56, fontVariant: ["tabular-nums"] },
+  statOf: { fontFamily: font.semibold, fontSize: 15, opacity: 0.75 },
+  heroNote: { fontFamily: font.body, fontSize: 13, lineHeight: 18, opacity: 0.72 },
+  version: { fontFamily: font.heavy, fontSize: 10.5, letterSpacing: 1.6, textAlign: "center", opacity: 0.55, marginTop: 8 },
   premiumKicker: { fontFamily: font.heavy, fontSize: 11.5, letterSpacing: 1.6 },
   premiumTitle: { fontFamily: font.display, fontSize: 32, lineHeight: 34, marginBottom: 6 },
   perk: { fontFamily: font.body, fontSize: 16 },

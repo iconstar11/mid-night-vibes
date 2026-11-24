@@ -24,7 +24,7 @@ for (const group of ["couple", "group"] as const) {
 }
 // Wheel of Misfortune forfeits (and the optional drink wedges), listed as their own game
 for (const group of ["couple", "group"] as const) {
-  for (const [label, texts] of [...MISFORTUNE[group], ...MISFORTUNE_DRINKS]) {
+  for (const [label, texts] of [...MISFORTUNE[group], ...MISFORTUNE_DRINKS[group]]) {
     texts.forEach((text, i) => rows.push({ id: cardId(text), game: "misfortune", group, type: "wedge", heat: i + 1, label, text, origin: "built-in" }));
   }
 }

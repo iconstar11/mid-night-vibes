@@ -1,11 +1,11 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 
 import { GateView } from "@/components/Gate";
 import { Sheet } from "@/components/Sheet";
-import { CardFace, cardLabel, useCardMotion } from "@/components/TodCard";
+import { CardFace, cardLabel, cardTextSize, useCardMotion } from "@/components/TodCard";
 import { Wheel, type WheelHandle } from "@/components/Wheel";
 import { Btn, Fine, Screen, Title } from "@/components/ui";
 import { GROUPS } from "@/game/content";
@@ -14,6 +14,7 @@ import { play } from "@/lib/sound";
 import { savePending } from "@/lib/pending";
 import { track } from "@/lib/track";
 import type { Card, Wedge } from "@/game/types";
+import { GlossText } from "@/components/GlossText";
 import { joinRoom, leaveRoom, onRoomEvent, useRoom, type Result, type RoomEvent, type Snapshot } from "@/lib/room";
 import { useGame } from "@/state/store";
 import { FLAMES, HEAT_NAMES, font, useColors } from "@/theme/tokens";
@@ -59,6 +60,7 @@ function useEventQueue(handler: (e: RoomEvent) => Promise<void> | void) {
 
 function Live({ code }: { code: string }) {
   const c = useColors();
+  const { width: screenW } = useWindowDimensions();
   const status = useRoom((r) => r.status);
   const error = useRoom((r) => r.error);
   const snap = useRoom((r) => r.snapshot);
@@ -108,7 +110,8 @@ function Live({ code }: { code: string }) {
       <Sheet open={!!result && !hidden && snap?.screen === "wheel"} onClose={() => setHidden(true)}>
         <Text style={[st.who, { color: c.onAccent }]}>{snap ? whoseTurn(snap) : ""}, this one's yours</Text>
         <Text style={[st.kind, { color: c.brass }]}>{(result?.ai ? "✦ " : "") + (result?.label ?? "")}</Text>
-        <Text style={[st.text, { color: c.onAccent }]}>{result?.text}</Text>
+        <GlossText text={result?.text ?? ""} color={c.onAccent} style={[st.text, cardTextSize(result?.text ?? "", screenW, 32), { color: c.onAccent }]} />
+        {!!result?.idea && <Text style={[st.note, { color: c.onAccent }]}>{result.idea}</Text>}
         <Text style={[st.note, { color: c.onAccent }]}>The host taps Done when you're finished.</Text>
       </Sheet>
     </View>

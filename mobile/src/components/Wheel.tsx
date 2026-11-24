@@ -1,4 +1,4 @@
-import { forwardRef, memo, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 import Animated, {
@@ -8,7 +8,7 @@ import Svg, { Circle, G, Path, Text as SvgText } from "react-native-svg";
 import { scheduleOnRN } from "react-native-worklets";
 
 import type { Wedge } from "@/game/types";
-import { TAU, WINDUP_MS, WINDUP_RAD, easeOutQuint, spinTarget, under, type SpinPlan } from "@/game/wheel";
+import { TAU, WINDUP_MS, WINDUP_RAD, easeOutQuint, spinTarget, under, wedgeEnds, type SpinPlan } from "@/game/wheel";
 import { easeIn, to, wait } from "@/lib/anim";
 import { buzz, play } from "@/lib/sound";
 import { font, useColors, type Colors } from "@/theme/tokens";
@@ -22,29 +22,43 @@ const WEDGE_COLORS = (c: Colors) => [c.wine, c.plum, c.rose, c.plum];
 const MISFORTUNE_COLORS = ["#7A1020", "#1E0A10", "#A8321E", "#1E0A10"];
 export type WheelTheme = "spin" | "misfortune";
 
+/** Colour per wedge: the 4-colour pattern when it fits, else 3 colours arranged so no neighbours match. */
+function colorAt(colors: string[], i: number, n: number) {
+  if (n % 4 === 0) return colors[i % 4];
+  const three = [colors[0], colors[1], colors[2]];
+  if (n % 3 === 1 && i === n - 1) return three[1];
+  return three[i % 3];
+}
+
 /** The disc: drawn once per wedge set (and highlight), never per frame. */
 const Disc = memo(function Disc({ wedges, hi, c, theme }: { wedges: Wedge[]; hi: number; c: Colors; theme: WheelTheme }) {
   const colors = theme === "misfortune" ? MISFORTUNE_COLORS : WEDGE_COLORS(c);
-  const n = wedges.length, a = TAU / n;
+  const n = wedges.length;
+  const ends = wedgeEnds(wedges);
+  const from = (i: number) => (i ? ends[i - 1] : 0) * TAU;
+  const to = (i: number) => ends[i] * TAU;
   const arc = (i: number, r: number) => {
-    const a0 = i * a, a1 = (i + 1) * a;
-    return `M${R} ${R} L${R + r * Math.cos(a0)} ${R + r * Math.sin(a0)} A${r} ${r} 0 0 1 ${R + r * Math.cos(a1)} ${R + r * Math.sin(a1)} Z`;
+    const a0 = from(i), a1 = to(i);
+    return `M${R} ${R} L${R + r * Math.cos(a0)} ${R + r * Math.sin(a0)} A${r} ${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${R + r * Math.cos(a1)} ${R + r * Math.sin(a1)} Z`;
   };
+  // Pegs on every line and in the middle of each wedge
+  const pegs = ends.flatMap((e, i) => [from(i), (from(i) + to(i)) / 2]);
   return (
     <Svg width="100%" height="100%" viewBox={`0 0 ${SIZE} ${SIZE}`}>
       <Circle cx={R} cy={R} r={R - 2} fill={c.brass} />
       {wedges.map((w, i) => (
         <G key={i}>
-          <Path d={arc(i, INNER)} fill={colors[i % 4]} stroke={c.brass} strokeWidth={3} />
+          <Path d={arc(i, INNER)} fill={colorAt(colors, i, n)} stroke={c.brass} strokeWidth={3} />
           {i === hi && <Path d={arc(i, INNER - 2)} fill="rgba(255,236,200,0.28)" stroke={CREAM} strokeWidth={6} />}
         </G>
       ))}
       {wedges.map((w, i) => {
-        const deg = ((i + 0.5) * a * 180) / Math.PI;
-        // Shrink long labels (AI wedges) to fit between the hub and the rim
+        const deg = (((from(i) + to(i)) / 2) * 180) / Math.PI;
+        // Shrink long labels (AI wedges) to fit between the hub and the rim, and to the wedge's width (thin or many wedges)
         const room = INNER - 150;
-        let size = 44, label = w[0];
-        while (label.length * size * 0.43 > room && size > 26) size--;
+        let size = Math.min(44, Math.max(18, (to(i) - from(i)) * 230)), label = w[0];
+        const min = Math.min(26, size);
+        while (label.length * size * 0.43 > room && size > min) size--;
         while (label.length * size * 0.43 > room && label.length > 3) label = label.slice(0, -2) + "…";
         return (
           <SvgText key={"t" + i} x={INNER - 24} y={0} dy={size * 0.34} fill={CREAM} fontSize={size} fontFamily={font.displayItalic} textAnchor="end"
@@ -53,8 +67,7 @@ const Disc = memo(function Disc({ wedges, hi, c, theme }: { wedges: Wedge[]; hi:
           </SvgText>
         );
       })}
-      {Array.from({ length: n * 2 }, (_, i) => {
-        const t = (i * a) / 2;
+      {pegs.map((t, i) => {
         return <Circle key={"p" + i} cx={R + Math.cos(t) * (R - 18)} cy={R + Math.sin(t) * (R - 18)} r={6} fill={CREAM} opacity={i % 2 ? 0.55 : 1} />;
       })}
     </Svg>
@@ -81,12 +94,14 @@ type Props = {
   onRequestSpin(power: number, dir: 1 | -1, windup: boolean): void;
   /** Colours: the normal wheel, or the darker Wheel of Misfortune. */
   theme?: WheelTheme;
+  /** Largest size that fits (the screen measures the room it has); at most 420. */
+  maxSize?: number;
 };
 
-export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi, disabled, hubLabel = "Spin", onRequestSpin, theme = "spin" }, ref) {
+export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi, disabled, hubLabel = "Spin", onRequestSpin, theme = "spin", maxSize }, ref) {
   const c = useColors();
   const reduce = useReducedMotion();
-  const n = wedges.length;
+  const ends = useMemo(() => wedgeEnds(wedges), [wedges]);
 
   const rot = useSharedValue(0); // radians
   const pulse = useSharedValue(1);
@@ -126,9 +141,9 @@ export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi,
     if (gap > 110) buzz("tick");
   }
   useAnimatedReaction(
-    () => under(rot.value, n),
+    () => under(rot.value, ends),
     (i, prev) => { if (prev !== null && i !== prev && (spinning.value || dragging.value)) scheduleOnRN(tick); },
-    [n],
+    [ends],
   );
 
   useImperativeHandle(ref, () => ({
@@ -139,7 +154,7 @@ export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi,
       dirRef.current = plan.dir;
       play("spin");
       if (plan.windup && !reduce) await to(rot, rot.value - plan.dir * WINDUP_RAD, { duration: WINDUP_MS, easing: Easing.out(Easing.quad) });
-      const { end, duration } = spinTarget(rot.value, n, plan, reduce);
+      const { end, duration } = spinTarget(rot.value, ends, plan, reduce);
       await to(rot, end, { duration, easing: easeOutQuint });
       spinning.value = false;
       if (!reduce) { await to(pulse, 1.035, { duration: 190 }); await to(pulse, 1, { duration: 190 }); }
@@ -153,7 +168,7 @@ export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi,
       const back = Easing.bezier(0.2, 0.9, 0.3, 1.15);
       await Promise.all([to(swapS, 1, { duration: 520, easing: back }, reduce), to(swapO, 1, { duration: 520, easing: back }, reduce), to(swapR, 0, { duration: 520, easing: back }, reduce)]);
     },
-  }), [n, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+  }), [ends, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Flick to spin: the disc follows the finger; a fast release spins it that way
   const pan = usePanGesture({
@@ -184,7 +199,7 @@ export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi,
   });
 
   return (
-    <View style={st.wrap}>
+    <View style={[st.wrap, maxSize ? { maxWidth: Math.max(160, Math.min(420, maxSize)) } : null]}>
       <View style={[st.shadow, { shadowColor: c.plum, backgroundColor: c.plum }]} />
       <GestureDetector gesture={pan}>
         <Animated.View style={[st.disc, disc]} onLayout={(e) => { size.value = e.nativeEvent.layout.width; }}
@@ -210,7 +225,7 @@ export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi,
 });
 
 const st = StyleSheet.create({
-  wrap: { width: "100%", maxWidth: 360, aspectRatio: 1, alignSelf: "center" },
+  wrap: { width: "100%", maxWidth: 420, aspectRatio: 1, alignSelf: "center" },
   shadow: { position: "absolute", top: "3%", left: "3%", right: "3%", bottom: "3%", borderRadius: 999, shadowOpacity: 0.55, shadowRadius: 22, shadowOffset: { width: 0, height: 20 }, elevation: 12 },
   disc: { width: "100%", height: "100%" },
   pointer: { position: "absolute", top: -12, left: "50%", marginLeft: -16, width: 32, height: 40, transformOrigin: ["50%", 12, 0] },

@@ -8,8 +8,14 @@ export type CardType = "truth" | "dare";
 /** truth and dare prompts, each split into heat levels [Flirty, Steamy, Spicy] */
 export type Deck = Record<CardType, [string[], string[], string[]]>;
 
-/** [label, text per heat level]; one text means the same at every level */
-export type Wedge = [string, string[]];
+/** Extra wedge details. `w`: size (1 = normal; thin wedges like Free pass are rarer to land on).
+ *  `kind`: "pass" gives a free pass, "again" spins again, "suggest" shows a suggested truth/dare from the deck.
+ *  `ai`: written by the AI. `own`: typed by the players. */
+/** `fill`: added to top up a short list the players pasted (built-in or AI). */
+export type WedgeMeta = { w?: number; kind?: "pass" | "again" | "suggest"; ai?: boolean; own?: boolean; fill?: boolean };
+
+/** [label, text per heat level, details]; one text means the same at every level */
+export type Wedge = [string, string[], WedgeMeta?];
 
 export type Player = { name: string; g: Sex; into: Into };
 

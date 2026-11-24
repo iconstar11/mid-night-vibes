@@ -16,9 +16,13 @@ type Prefs = {
   wheelMode: WheelMode;
   /** The "how Misfortune differs" sheet was shown once. */
   misfortuneSeen: boolean;
+  /** Heat of the dares added to fill a short pasted list (1 Flirty, 2 Steamy, 3 Spicy). */
+  fillHeat: 1 | 2 | 3;
+  /** The heat moves up on its own during a game (Flirty → Steamy → Spicy), on by default. */
+  heatRise: boolean;
 };
 
-const DEFAULTS: Prefs = { showMood: false, sound: true, vibration: true, drinks: false, wheelMode: "spin", misfortuneSeen: false };
+const DEFAULTS: Prefs = { showMood: false, sound: true, vibration: true, drinks: false, wheelMode: "spin", misfortuneSeen: false, fillHeat: 2, heatRise: true };
 const KEY = "mv.prefs";
 const OLD_MOOD_KEY = "mv.showMood"; // earlier versions saved only this
 
