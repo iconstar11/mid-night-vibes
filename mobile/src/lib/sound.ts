@@ -91,7 +91,7 @@ function bell(at: number, f: number, gain = 0.35) {
 // `speed` (0..1) lets the wheel tick drop in pitch and volume as it slows down.
 
 type Recipe = (t: number, speed: number) => void;
-const STYLES: Record<SoundStyle, Record<SoundEvent, Recipe>> = {
+const STYLES: Record<Exclude<SoundStyle, "recorded">, Record<SoundEvent, Recipe>> = {
   // Wooden clicks and a bell; sad trombone for bad luck
   classic: {
     tick: (t, s) => { noise(t, 0.035, { freq: 2200 + s * 1400, q: 6, gain: 0.55 + s * 0.3 }); tone(t, 1300 + s * 500, 0.03, { gain: 0.18, type: "triangle" }); },
@@ -130,16 +130,72 @@ const STYLES: Record<SoundStyle, Record<SoundEvent, Recipe>> = {
   },
 };
 
-/** Play a game sound (if Sounds is on). `style` overrides the chosen style (the sound lab). */
-export function play(event: SoundEvent, opts: { speed?: number; style?: SoundStyle; force?: boolean } = {}) {
+// ---------- Recorded sounds (Kenney "Interface Sounds", CC0: free to use, credit optional) ----------
+/** Candidate recordings per sound, first one is the default. Files live in public/audio/kenney. */
+export const RECORDED: Record<SoundEvent, string[]> = {
+  tick: ["tick_002", "tick_001", "tick_004", "click_001", "click_003", "switch_002"],
+  spin: ["scroll_004", "scroll_002", "switch_005"],
+  land: ["confirmation_002", "confirmation_001", "confirmation_004", "glass_001", "glass_004"],
+  misfortune: ["error_006", "error_002", "error_004", "error_008", "bong_001"],
+  flip: ["scroll_002", "switch_005", "scroll_004"],
+  done: ["select_002", "select_005", "pluck_001"],
+  star: ["maximize_004", "maximize_008", "glass_004"],
+  timer: ["bong_001", "question_002", "confirmation_004"],
+};
+const buffers = new Map<string, AudioBuffer | Promise<AudioBuffer | null> | null>();
+function loadRecording(name: string): Promise<AudioBuffer | null> {
+  const a = audio();
+  if (!a) return Promise.resolve(null);
+  const have = buffers.get(name);
+  if (have instanceof AudioBuffer) return Promise.resolve(have);
+  if (have) return have as Promise<AudioBuffer | null>;
+  const p = fetch(`/audio/kenney/${name}.wav`)
+    .then((r) => r.arrayBuffer())
+    .then((b) => a.decodeAudioData(b))
+    .then((buf) => { buffers.set(name, buf); return buf; })
+    .catch(() => { buffers.set(name, null); return null; });
+  buffers.set(name, p);
+  return p;
+}
+/** Fetch the chosen recordings ahead of time, so the first tick isn't late. */
+export function preloadRecorded() {
+  const chosen = usePrefs.getState().recorded;
+  (Object.keys(RECORDED) as SoundEvent[]).forEach((e) => loadRecording(chosen[e] ?? RECORDED[e][0]));
+}
+function playRecording(name: string, speed: number, isTick: boolean) {
+  const a = ctx!, out = master!;
+  loadRecording(name).then((buf) => {
+    if (!buf) return;
+    const src = a.createBufferSource(), g = a.createGain();
+    src.buffer = buf;
+    if (isTick) src.playbackRate.value = 0.85 + speed * 0.25; // ticks drop in pitch as the wheel slows
+    g.gain.value = isTick ? 0.5 + speed * 0.5 : 0.9;
+    src.connect(g).connect(out);
+    src.start();
+  });
+}
+
+// The sound lab can preview a style (and file) on the real wheel without changing the setting
+let preview: { style: SoundStyle; file?: Partial<Record<SoundEvent, string>> } | null = null;
+export function setPreview(p: typeof preview) { preview = p; }
+
+/** Play a game sound (if Sounds is on). `style`/`file` override the chosen ones (the sound lab). */
+export function play(event: SoundEvent, opts: { speed?: number; style?: SoundStyle; file?: string; force?: boolean } = {}) {
   const prefs = usePrefs.getState();
-  if (!opts.force && !prefs.sound) return;
+  if (!opts.force && !preview && !prefs.sound) return;
   if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
   const a = audio();
   if (!a || !master) return;
   if (a.state !== "running") a.resume().catch(() => {});
+  const style = opts.style ?? preview?.style ?? prefs.soundStyle;
+  const speed = Math.min(Math.max(opts.speed ?? 1, 0), 1);
   try {
-    STYLES[opts.style ?? prefs.soundStyle][event](a.currentTime + 0.01, Math.min(Math.max(opts.speed ?? 1, 0), 1));
+    if (style === "recorded") {
+      const file = opts.file ?? preview?.file?.[event] ?? prefs.recorded[event] ?? RECORDED[event][0];
+      playRecording(file, speed, event === "tick");
+      return;
+    }
+    STYLES[style][event](a.currentTime + 0.01, speed);
   } catch {
     // Sound is a nice-to-have
   }
@@ -156,6 +212,7 @@ export const SOUND_STYLES: { id: SoundStyle; name: string; note: string }[] = [
   { id: "classic", name: "Classic", note: "Wooden wheel clicks, a bell on landing, sad trombone for bad luck" },
   { id: "soft", name: "Soft", note: "Muted taps, a marimba on landing, a low gong for bad luck" },
   { id: "arcade", name: "Arcade", note: "8-bit blips, a little fanfare, a game-show buzzer for bad luck" },
+  { id: "recorded", name: "Recorded", note: "Real recorded sounds (Kenney, free CC0). Pick the recording you like for each sound below." },
 ];
 export const SOUND_EVENTS: { id: SoundEvent; name: string }[] = [
   { id: "spin", name: "Spin starts" }, { id: "tick", name: "Wheel tick" }, { id: "land", name: "Lands (Spin the Wheel)" },

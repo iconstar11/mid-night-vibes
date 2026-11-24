@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 
 export type WheelMode = "spin" | "misfortune";
-export type SoundStyle = "classic" | "soft" | "arcade";
+export type SoundStyle = "classic" | "soft" | "arcade" | "recorded";
 
 type Prefs = {
   /** The chosen mood shows on the game screens (hidden/blurred by default). */
@@ -18,9 +18,11 @@ type Prefs = {
   /** The "how Misfortune differs" sheet was shown once. */
   misfortuneSeen: boolean;
   soundStyle: SoundStyle;
+  /** Recorded style: which recording to use for each sound (file name in /audio/kenney). */
+  recorded: Record<string, string>;
 };
 
-const DEFAULTS: Prefs = { showMood: false, sound: true, vibration: true, drinks: false, wheelMode: "spin", misfortuneSeen: false, soundStyle: "classic" };
+const DEFAULTS: Prefs = { showMood: false, sound: true, vibration: true, drinks: false, wheelMode: "spin", misfortuneSeen: false, soundStyle: "classic", recorded: {} };
 const KEY = "mv.prefs";
 const OLD_MOOD_KEY = "mv.showMood"; // earlier versions saved only this
 
