@@ -1,10 +1,11 @@
 # Cloudflare Pages redirects (302 = not cached, so codes can be reused or changed).
 # Post short links, written on the image/video itself because TikTok, Instagram and Shorts captions
 # can't hold clickable links: midnightvibes.online/t/12 = TikTok post 12, /i/ Instagram, /f/ Facebook, /y/ YouTube.
-/t/:n  /?ref=tt-:n  302
-/i/:n  /?ref=ig-:n  302
-/f/:n  /?ref=fb-:n  302
-/y/:n  /?ref=yt-:n  302
+# They go to /go/tt-12 (Cloudflare fills :n in a path, not in a ?query); the app reads the code from that path.
+/t/:n  /go/tt-:n  302
+/i/:n  /go/ig-:n  302
+/f/:n  /go/fb-:n  302
+/y/:n  /go/yt-:n  302
 # Bio links, one per platform
 /tt  /?ref=tt-bio  302
 /ig  /?ref=ig-bio  302
@@ -13,3 +14,4 @@
 
 # Live room links like /r/K7QX9M2A are one client page (same as netlify.toml)
 /r/*  /r/[code]  200
+/go/*  /go/[code]  200

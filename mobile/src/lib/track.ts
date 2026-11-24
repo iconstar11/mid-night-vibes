@@ -70,12 +70,14 @@ if (Platform.OS === "web" && typeof document !== "undefined") {
 // The address the app was opened at, read before any screen redirects (the 18+ gate drops the query)
 const START_URL = Platform.OS === "web" && typeof window !== "undefined" ? window.location.href : "";
 
-/** Opening the app: where they came from (?ref=tt-12 from a post's short link like midnightvibes.online/t/12) and how. */
+/** Opening the app: where they came from and how. A post's short link like midnightvibes.online/t/12 arrives as
+ *  /go/tt-12 (see public/_redirects); bio links and others as ?ref=tt-bio. */
 export function trackSessionStart() {
   let ref: string | null = null;
   let installed = false;
   if (START_URL) {
-    ref = new URL(START_URL).searchParams.get("ref");
+    const url = new URL(START_URL);
+    ref = url.searchParams.get("ref") ?? url.pathname.match(/^\/go\/([a-z]{2}-[a-z0-9-]+)\/?$/i)?.[1] ?? null;
     installed = window.matchMedia?.("(display-mode: standalone)").matches ?? false;
   }
   track("session_start", { ref: ref?.replace(/[^a-z0-9-]/gi, "").slice(0, 30) || null, platform: Platform.OS, installed });
