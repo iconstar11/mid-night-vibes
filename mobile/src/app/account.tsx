@@ -9,7 +9,7 @@ import { AdultOnly } from "@/components/Guard";
 import { ProfileSettings } from "@/components/ProfileSettings";
 import { Btn, Fine, Label, RoundBtn, Screen, Seg } from "@/components/ui";
 import { PLAN_NAMES, aiAllowance, refreshAccount,signIn, signInWithGoogle, signOut, signUp, useAuth } from "@/lib/auth";
-import { OFFERS, manageBilling, payByCard, payByMpesa, waitForPayment, waitForPremium, type Product } from "@/lib/billing";
+import { OFFERS, cardCurrency, manageBilling, payByCard, payByMpesa, waitForPayment, waitForPremium, type Product } from "@/lib/billing";
 import { peekPending, type PendingReason } from "@/lib/pending";
 import { useProfile } from "@/lib/profile";
 import { track } from "@/lib/track";
@@ -152,6 +152,10 @@ function Premium() {
   const [error, setError] = useState("");
   const [mpesa, setMpesa] = useState<null | { phone: string; stage: "phone" | "waiting" | "failed"; message?: string }>(null);
   const offer = OFFERS.find((o) => o.id === open)!;
+  // Cards charge KES until Paystack enables USD; show the price people will actually pay
+  const [cur, setCur] = useState<"USD" | "KES">("KES");
+  useEffect(() => { cardCurrency().then(setCur); }, []);
+  const cardPrice = (o: (typeof OFFERS)[number]) => (cur === "USD" ? o.price : o.kes);
   const digits = (mpesa?.phone ?? "").replace(/\D/g, "").length;
 
   async function card() {
@@ -188,7 +192,7 @@ function Premium() {
           const on = o.id === open;
           return (
             <Pressable key={o.id} onPress={() => { setOpen(o.id); setMpesa(null); setError(""); }} disabled={busy} accessibilityRole="radio"
-              accessibilityState={{ selected: on }} accessibilityLabel={`${o.title}, ${o.price} per ${o.per}, or ${o.kes} with M-Pesa`}
+              accessibilityState={{ selected: on }} accessibilityLabel={cur === "USD" ? `${o.title}, ${o.price} per ${o.per}, or ${o.kes} with M-Pesa` : `${o.title}, ${o.kes} per ${o.per}`}
               style={({ pressed }) => [st.offer, {
                 backgroundColor: on ? c.onAccent : "transparent",
                 borderColor: on ? c.onAccent : c.onAccent + "66",
@@ -199,8 +203,8 @@ function Premium() {
                 <Text style={[st.offerNote, { color: on ? c.muted : c.onAccent }]}>{o.note}</Text>
               </View>
               <View style={{ alignItems: "flex-end" }}>
-                <Text style={[st.offerPrice, { color: on ? c.wine : c.onAccent }]}>{o.price}<Text style={st.offerPer}> / {o.per}</Text></Text>
-                <Text style={[st.offerNote, { color: on ? c.muted : c.onAccent }]}>or {o.kes} M-Pesa</Text>
+                <Text style={[st.offerPrice, { color: on ? c.wine : c.onAccent }]}>{cardPrice(o)}<Text style={st.offerPer}> / {o.per}</Text></Text>
+                {cur === "USD" && <Text style={[st.offerNote, { color: on ? c.muted : c.onAccent }]}>or {o.kes} M-Pesa</Text>}
               </View>
             </Pressable>
           );
@@ -210,7 +214,7 @@ function Premium() {
       {!mpesa ? (
         <View style={st.payRow}>
           <Pressable onPress={card} disabled={busy} accessibilityRole="button" style={[st.payBtn, { backgroundColor: c.onAccent }]}>
-            <Text style={[st.payText, { color: c.wine }]}>{busy ? "Opening…" : `Card · ${offer.price}`}</Text>
+            <Text style={[st.payText, { color: c.wine }]}>{busy ? "Opening…" : `Card · ${cardPrice(offer)}`}</Text>
           </Pressable>
           <Pressable onPress={() => { setMpesa({ phone: "", stage: "phone" }); setError(""); }} disabled={busy} accessibilityRole="button"
             style={[st.payBtn, { backgroundColor: MPESA_GREEN }]}>
@@ -243,7 +247,7 @@ function Premium() {
       )}
       {!!error && <Text style={[st.err, { color: c.onAccent }]}>{error}</Text>}
       <Text style={[st.perk, { color: c.onAccent, fontSize: 12.5, opacity: 0.7 }]}>
-        Secure payment by Paystack. Cards are charged in US dollars; M-Pesa in Kenyan shillings.
+        Secure payment by Paystack. {cur === "USD" ? "Cards and Apple Pay are charged in US dollars; M-Pesa in Kenyan shillings." : "Charged in Kenyan shillings; cards from other countries convert automatically."}
       </Text>
     </LinearGradient>
   );

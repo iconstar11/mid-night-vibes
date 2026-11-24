@@ -30,6 +30,12 @@ async function call<T = any>(body: Record<string, unknown>): Promise<T> {
   return data as T;
 }
 
+/** What cards are charged in right now: KES until Paystack enables USD on the account. */
+export async function cardCurrency(): Promise<"USD" | "KES"> {
+  const r = await call<{ cardCurrency?: string }>({ action: "config" }).catch(() => ({ cardCurrency: "KES" }));
+  return r.cardCurrency === "USD" ? "USD" : "KES";
+}
+
 /** Card: go to Paystack's page (it comes back to /account?paid=1&ref=…). Apps: in-app browser, then check. */
 export async function payByCard(product: Product) {
   track("checkout_start", { product, method: "card" });

@@ -1,10 +1,11 @@
 // Supabase Edge Function "billing": Premium payments with Paystack.
-//   { action: "card", product, origin }    → Paystack's card page (USD). Monthly/yearly renew automatically.
+//   { action: "config" }                   → { cardCurrency }: what cards are charged in (KES until USD is enabled)
+//   { action: "card", product, origin }    → Paystack's card / Apple Pay page. Monthly/yearly renew automatically.
 //   { action: "mpesa", product, phone }    → M-Pesa STK push (KES): the phone shows a PIN prompt. Buys days.
 //   { action: "verify", reference }        → checks a payment with Paystack and turns Premium on (once)
 //   { action: "manage", origin }           → Paystack's page to update the card or cancel renewal
 // Requires a signed-up (not guest) account so Premium belongs to someone who can sign in again.
-import { PRODUCTS, PaystackError, admin, cors, fulfil, json, kenyanPhone, paystack, planCode, returnBase, type Product } from "../_shared/billing.ts";
+import { PRODUCTS, PaystackError, admin, cardCurrency, cors, fulfil, json, kenyanPhone, paystack, planCode, priceIn, returnBase, type Product } from "../_shared/billing.ts";
 
 const newReference = () => "mv_" + crypto.randomUUID().replace(/-/g, "");
 
@@ -23,6 +24,8 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return json(400, { error: "The request wasn't readable." }); }
 
   try {
+    if (body.action === "config") return json(200, { cardCurrency: cardCurrency() });
+
     // ----- Check a payment (after returning from the card page, or while waiting for M-Pesa) -----
     if (body.action === "verify") {
       const reference = String(body.reference ?? "");
@@ -55,18 +58,20 @@ Deno.serve(async (req) => {
     const reference = newReference();
     const metadata = JSON.stringify({ user_id: user.id, product, reference });
 
-    // ----- Card (USD) -----
+    // ----- Card or Apple Pay (USD once enabled, KES until then) -----
     if (body.action === "card") {
-      await admin.from("payments").insert({ reference, user_id: user.id, product, channel: "card", currency: "USD", amount: p.usd });
+      const currency = cardCurrency();
+      const amount = priceIn(product, currency);
+      await admin.from("payments").insert({ reference, user_id: user.id, product, channel: "card", currency, amount });
       const tx = await paystack<{ authorization_url: string }>("POST", "/transaction/initialize", {
         email: user.email,
-        amount: String(p.usd),
-        currency: "USD",
-        channels: ["card"],
+        amount: String(amount),
+        currency,
+        channels: ["card", "apple_pay"], // Apple Pay shows only on Apple devices in Safari
         reference,
         callback_url: `${returnBase(body.origin)}/account?paid=1&ref=${reference}`,
         metadata,
-        ...(p.interval ? { plan: await planCode(product) } : {}),
+        ...(p.interval ? { plan: await planCode(product, currency) } : {}),
       });
       return json(200, { url: tx.authorization_url, reference });
     }

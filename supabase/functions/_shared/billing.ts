@@ -14,6 +14,11 @@ export const PRODUCTS: Record<Product, { name: string; usd: number; kes: number;
   yearly: { name: "Midnight Vibes Premium (yearly)", usd: 2999, kes: 390000, days: 365, interval: "annually" },
   pass: { name: "Midnight Vibes Party Pass (7 days)", usd: 299, kes: 39000, days: 7 },
 };
+/** Card (and Apple Pay) currency. USD needs Paystack to enable it on the account; until then cards charge KES.
+ *  Switch with: supabase secrets set CARD_CURRENCY=USD (no code change). M-Pesa is always KES. */
+export const cardCurrency = (): "USD" | "KES" => (Deno.env.get("CARD_CURRENCY")?.toUpperCase() === "USD" ? "USD" : "KES");
+export const priceIn = (product: Product, currency: string) => (currency === "USD" ? PRODUCTS[product].usd : PRODUCTS[product].kes);
+
 /** A renewing card plan gets a little slack past the period, so a renewal a few hours late doesn't drop Premium. */
 export const RENEWAL_GRACE_DAYS = 2;
 
@@ -53,23 +58,25 @@ export async function paystack<T = any>(method: "GET" | "POST", path: string, bo
   return j.data as T;
 }
 
-/** The USD plan code for a renewing product, created on Paystack the first time it's needed. */
-const planCache: Partial<Record<Product, string>> = {};
-export async function planCode(product: Product): Promise<string> {
+/** The plan code for a renewing product in a currency, created on Paystack the first time it's needed. */
+const planCache: Record<string, string> = {};
+export async function planCode(product: Product, currency: string): Promise<string> {
   const p = PRODUCTS[product];
   if (!p.interval) throw new Error("Not a renewing product");
-  if (planCache[product]) return planCache[product]!;
+  const key = `${product}:${currency}`;
+  if (planCache[key]) return planCache[key];
+  const amount = priceIn(product, currency);
   const plans = await paystack<{ name: string; plan_code: string; currency: string; amount: number; interval: string }[]>("GET", "/plan?perPage=100");
-  let found = plans.find((x) => x.name === p.name && x.currency === "USD" && x.amount === p.usd && x.interval === p.interval);
-  if (!found) found = await paystack("POST", "/plan", { name: p.name, interval: p.interval, amount: p.usd, currency: "USD" });
-  return (planCache[product] = found!.plan_code);
+  let found = plans.find((x) => x.name === p.name && x.currency === currency && x.amount === amount && x.interval === p.interval);
+  if (!found) found = await paystack("POST", "/plan", { name: p.name, interval: p.interval, amount, currency });
+  return (planCache[key] = found!.plan_code);
 }
 
-/** Kenyan phone numbers to 2547XXXXXXXX / 2541XXXXXXXX, or null if it doesn't look like one. */
+/** Kenyan phone numbers to +2547XXXXXXXX / +2541XXXXXXXX (Paystack rejects them without the +), or null. */
 export function kenyanPhone(input: unknown): string | null {
   const d = String(input ?? "").replace(/[\s()-]/g, "").replace(/^\+/, "");
   const m = d.match(/^(?:254|0)?([17]\d{8})$/);
-  return m ? `254${m[1]}` : null;
+  return m ? `+254${m[1]}` : null;
 }
 
 // ---------- Webhook signatures ----------
@@ -143,7 +150,7 @@ export async function fulfil(tx: Tx): Promise<"granted" | "already" | "pending" 
 
   // The amount and currency must match the price we set (protects against altered or test payments)
   const p = PRODUCTS[pay.product as Product];
-  const expected = pay.channel === "mpesa" ? { currency: "KES", amount: p.kes } : { currency: "USD", amount: p.usd };
+  const expected = { currency: String(pay.currency), amount: priceIn(pay.product as Product, String(pay.currency)) };
   if (String(tx.currency) !== expected.currency || Number(tx.amount) < expected.amount) {
     console.error("payment amount mismatch", reference, tx.currency, tx.amount);
     await admin.from("payments").update({ status: "failed" }).eq("reference", reference);
