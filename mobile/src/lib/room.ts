@@ -8,6 +8,7 @@ import type { Card, GroupId, PairId, Wedge } from "@/game/types";
 import type { SpinPlan } from "@/game/wheel";
 import { type AiState, useGame } from "@/state/store";
 import { ensureSession, supabase } from "./supabase";
+import { usePrefs } from "./prefs";
 import { track } from "./track";
 
 export type Screen = "home" | "tod" | "wheel";
@@ -113,7 +114,8 @@ function snapshot(): Snapshot {
   const g = useGame.getState();
   return {
     group: g.group, pair: g.pair, names: g.players.map((p) => p.name), turn: g.turn, heat: g.heat,
-    mood: g.mood, aiState: g.ai.state, wedges: g.wedges(), ...hostView,
+    // Viewers only get the mood if the host chose to show it on screen
+    mood: usePrefs.getState().showMood ? g.mood : "", aiState: g.ai.state, wedges: g.wedges(), ...hostView,
   };
 }
 
@@ -151,7 +153,9 @@ export async function startHosting(): Promise<string> {
     useRoom.setState({ code, status: "live" });
     track("room_start", {});
     // Any change to players, turn, heat, mood or AI wedges goes out as a fresh snapshot
-    unsubGame = useGame.subscribe(sendStateSoon);
+    const offGame = useGame.subscribe(sendStateSoon);
+    const offPrefs = usePrefs.subscribe(sendStateSoon); // showing/hiding the mood updates viewers too
+    unsubGame = () => { offGame(); offPrefs(); };
     sendStateSoon();
     return code;
   } catch (e) {

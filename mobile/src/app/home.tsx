@@ -7,6 +7,7 @@ import Svg, { Circle, G, Path } from "react-native-svg";
 
 import { AdultOnly } from "@/components/Guard";
 import { MoodSheet, Spark } from "@/components/Mood";
+import { PrivateMood } from "@/components/PrivateText";
 import { LiveBadge } from "@/components/LiveBadge";
 import { ShareRoom } from "@/components/ShareRoom";
 import { Sheet } from "@/components/Sheet";
@@ -144,7 +145,7 @@ function Games() {
             <Press onPress={() => setMoodOpen(true)} style={[st.moodTile, { backgroundColor: c.surface, borderColor: mood ? c.brass + "99" : c.line }]} accessibilityRole="button">
               <View style={[st.spark, { backgroundColor: c.brass }]}><Spark size={24} color={c.onAccent} /></View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[st.moodName, { color: c.ink }]} numberOfLines={1}>{mood ? "Mood: " + mood : "Set the mood"}</Text>
+                <Text style={[st.moodName, { color: c.ink }]} numberOfLines={1}>{mood ? <>Mood: <PrivateMood text={mood} peekable={false} /></> : "Set the mood"}</Text>
                 <Text style={[st.moodSub, { color: c.muted }]}>
                   {!mood ? 'AI tailors both games to it, like "kissing".' : aiState === "loading" ? "AI is writing cards and wedges…" : aiState === "ready" ? "Both games are tailored to it." : "AI isn't reachable, so the built-in deck is used."}
                 </Text>

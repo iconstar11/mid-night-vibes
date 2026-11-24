@@ -7,11 +7,13 @@ import { router, usePathname } from "expo-router";
 import { GROUPS } from "@/game/content";
 import { aiAllowance, refreshAccount, useAuth } from "@/lib/auth";
 import { savePending } from "@/lib/pending";
+import { setShowMood, usePrefs } from "@/lib/prefs";
 import { track } from "@/lib/track";
 import { useGame, type AiState } from "@/state/store";
 import { font, useColors } from "@/theme/tokens";
 import { Sheet } from "./Sheet";
-import { Btn, Chip, Fine } from "./ui";
+import { PrivateMood } from "./PrivateText";
+import { Btn, Chip, Fine, Seg } from "./ui";
 
 /** The brass ✦, twinkling while the AI is writing. */
 export function Spark({ size = 16, color }: { size?: number; color?: string }) {
@@ -38,7 +40,7 @@ export function MoodBar({ onPress }: { onPress: () => void }) {
       style={[st.bar, { backgroundColor: c.surface, borderColor: mood ? c.brass + "99" : c.line }]}>
       <Spark />
       <Text style={[st.text, { color: c.ink }]} numberOfLines={1}>
-        {mood ? mood + " " : "Set a mood "}
+        {mood ? <PrivateMood text={mood} peekable={false} /> : "Set a mood"}{" "}
         <Text style={{ color: c.muted, fontFamily: font.body }}>{mood ? "· " + moodTag(state) : "for AI picks"}</Text>
       </Text>
       <Text style={[st.go, { color: c.rose }]}>{mood ? "Change" : "Set"}</Text>
@@ -70,15 +72,24 @@ export function MoodSheet({ open, onClose }: { open: boolean; onClose: () => voi
   };
   // Picking a mood is customizing with AI: guests go to sign in first
   const choose = (m: string) => (email ? apply(m) : signInFor(m));
+  const showMood = usePrefs((p) => p.showMood);
+  // Hidden: blur what's typed on the web, dots on phones, and don't highlight which preset is picked
+  const hiddenInput = showMood ? null : Platform.OS === "web" ? ({ filter: "blur(5px)" } as object) : null;
   return (
     <Sheet open={open} onClose={onClose} tone="light">
       <Text style={[st.h, { color: c.ink }]} accessibilityRole="header">What's the mood?</Text>
       <TextInput value={text} onChangeText={setText} onSubmitEditing={() => choose(text)} maxLength={200}
         autoFocus={Platform.OS === "web"} returnKeyType="done" placeholder="e.g. kissing, anniversary, getting to know you" placeholderTextColor={c.muted}
-        style={[st.input, { borderColor: c.line, backgroundColor: c.surface, color: c.ink }]} />
+        secureTextEntry={!showMood && Platform.OS !== "web"}
+        style={[st.input, { borderColor: c.line, backgroundColor: c.surface, color: c.ink }, hiddenInput]} />
+      <View style={st.showRow}>
+        <Text style={[st.showLabel, { color: c.muted }]}>Mood on screen</Text>
+        <Seg<"hide" | "show"> value={showMood ? "show" : "hide"} onChange={(v) => setShowMood(v === "show")} accent={c.rose}
+          options={[["hide", "Hidden"], ["show", "Visible"]]} />
+      </View>
       <View style={st.chips}>
         {GROUPS[group].moods.map((m) => (
-          <Chip key={m} label={m} selected={text.trim().toLowerCase() === m.toLowerCase()} onPress={() => { setText(m); choose(m); }} />
+          <Chip key={m} label={m} selected={showMood && text.trim().toLowerCase() === m.toLowerCase()} onPress={() => { setText(m); choose(m); }} />
         ))}
       </View>
       {!email ? (
@@ -118,5 +129,7 @@ const st = StyleSheet.create({
   h: { fontFamily: font.display, fontSize: 32, lineHeight: 34 },
   input: { fontFamily: font.body, fontSize: 17, paddingVertical: 15, paddingHorizontal: 18, borderRadius: 16, borderWidth: 1.5 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  showRow: { gap: 6 },
+  showLabel: { fontFamily: font.semibold, fontSize: 13 },
   left: { fontFamily: font.semibold, fontSize: 14 },
 });

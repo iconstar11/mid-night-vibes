@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 import type { Into, Sex } from "@/game/types";
+import { setShowMood, usePrefs } from "@/lib/prefs";
 import { setAnalytics, useAnalytics } from "@/lib/track";
 import { addSavedPlayer, removeSavedPlayer, saveProfile, updateSavedPlayer, useProfile, type SavedPlayer, type Theme } from "@/lib/profile";
 import { font, useColors } from "@/theme/tokens";
@@ -33,6 +34,7 @@ export function ProfileSettings() {
   const [name, setName] = useState(p.name);
   const [note, run] = useSavedNote();
   const stats = useAnalytics((a) => a.on);
+  const showMood = usePrefs((p) => p.showMood);
   useEffect(() => { setName(p.name); }, [p.name]);
   const input = [st.input, { borderColor: c.line, backgroundColor: c.bg, color: c.ink }];
 
@@ -70,6 +72,11 @@ export function ProfileSettings() {
       <SavedPlayers run={run} />
 
       <View style={[st.rule, { backgroundColor: c.line }]} />
+      <View>
+        <Label>Mood on screen</Label>
+        <Seg<"hide" | "show"> value={showMood ? "show" : "hide"} onChange={(v) => { setShowMood(v === "show"); run(Promise.resolve("")); }} accent={c.rose} options={[["hide", "Hidden"], ["show", "Visible"]]} />
+        <Fine style={{ textAlign: "left", marginTop: 6 }}>Hidden blurs the mood you pick (and keeps it from people watching a live game). Saved on this device.</Fine>
+      </View>
       <View>
         <Label>Anonymous game stats</Label>
         <Seg<"on" | "off"> value={stats ? "on" : "off"} onChange={(v) => { setAnalytics(v === "on"); run(Promise.resolve("")); }} accent={c.rose} options={[["on", "On"], ["off", "Off"]]} />
