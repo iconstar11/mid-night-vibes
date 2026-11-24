@@ -199,12 +199,12 @@ function Premium() {
                 transform: [{ scale: pressed ? 0.98 : 1 }],
               }]}>
               <View style={{ flex: 1 }}>
-                <Text style={[st.offerTitle, { color: on ? c.wine : c.onAccent }]}>{o.title}{o.id === "yearly" ? "  ·  Best value" : ""}</Text>
-                <Text style={[st.offerNote, { color: on ? c.muted : c.onAccent }]}>{o.note}</Text>
+                <Text style={[st.offerTitle, { color: on ? ON_CREAM.wine : c.onAccent }]}>{o.title}{o.id === "yearly" ? "  ·  Best value" : ""}</Text>
+                <Text style={[st.offerNote, { color: on ? ON_CREAM.muted : c.onAccent }]}>{o.note}</Text>
               </View>
               <View style={{ alignItems: "flex-end" }}>
-                <Text style={[st.offerPrice, { color: on ? c.wine : c.onAccent }]}>{cardPrice(o)}<Text style={st.offerPer}> / {o.per}</Text></Text>
-                {cur === "USD" && <Text style={[st.offerNote, { color: on ? c.muted : c.onAccent }]}>or {o.kes} M-Pesa</Text>}
+                <Text style={[st.offerPrice, { color: on ? ON_CREAM.wine : c.onAccent }]}>{cardPrice(o)}<Text style={st.offerPer}> / {o.per}</Text></Text>
+                {cur === "USD" && <Text style={[st.offerNote, { color: on ? ON_CREAM.muted : c.onAccent }]}>or {o.kes} M-Pesa</Text>}
               </View>
             </Pressable>
           );
@@ -214,7 +214,7 @@ function Premium() {
       {!mpesa ? (
         <View style={st.payRow}>
           <Pressable onPress={card} disabled={busy} accessibilityRole="button" style={[st.payBtn, { backgroundColor: c.onAccent }]}>
-            <Text style={[st.payText, { color: c.wine }]}>{busy ? "Opening…" : `Card · ${cardPrice(offer)}`}</Text>
+            <Text style={[st.payText, { color: ON_CREAM.wine }]}>{busy ? "Opening…" : `Card · ${cardPrice(offer)}`}</Text>
           </Pressable>
           <Pressable onPress={() => { setMpesa({ phone: "", stage: "phone" }); setError(""); }} disabled={busy} accessibilityRole="button"
             style={[st.payBtn, { backgroundColor: MPESA_GREEN }]}>
@@ -231,9 +231,9 @@ function Premium() {
         <View style={[st.mpesaBox, { borderColor: c.onAccent + "55" }]}>
           {mpesa.stage === "failed" && <Text style={[st.err, { color: c.onAccent }]}>{mpesa.message}</Text>}
           <Text style={[st.offerNote, { color: c.onAccent }]}>Your M-Pesa number. You'll get a PIN prompt for {offer.kes}.</Text>
-          <TextInput value={mpesa.phone} onChangeText={(phone) => setMpesa({ ...mpesa, phone })} placeholder="0712 345 678" placeholderTextColor={c.muted}
+          <TextInput value={mpesa.phone} onChangeText={(phone) => setMpesa({ ...mpesa, phone })} placeholder="0712 345 678" placeholderTextColor={ON_CREAM.muted}
             keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" maxLength={16} onSubmitEditing={sendPrompt}
-            style={[st.input, { borderColor: c.onAccent + "55", backgroundColor: c.onAccent, color: c.ink }]} />
+            style={[st.input, { borderColor: c.onAccent + "55", backgroundColor: c.onAccent, color: ON_CREAM.ink }]} />
           <View style={st.payRow}>
             <Pressable onPress={() => setMpesa(null)} disabled={busy} accessibilityRole="button" style={[st.payBtn, { borderWidth: 1.5, borderColor: c.onAccent + "66" }]}>
               <Text style={[st.payText, { color: c.onAccent }]}>Back</Text>
@@ -254,6 +254,8 @@ function Premium() {
 }
 
 const MPESA_GREEN = "#2E9E4F";
+/** Text on the cream surfaces inside the Premium card: fixed dark colours, so they read in light and dark mode. */
+const ON_CREAM = { ink: "#3B0D1C", muted: "#7A5560", wine: "#7A1F3D" };
 
 function PremiumActive() {
   const c = useColors();
