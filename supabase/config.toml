@@ -11,7 +11,7 @@ major_version = 17
 
 [auth]
 site_url = "https://midnightvibes.online"
-additional_redirect_urls = ["https://midnightvibes.online/**", "https://www.midnightvibes.online/**", "http://localhost:8081/**", "midnightvibes://**"]
+additional_redirect_urls = ["https://midnightvibes.online/**", "https://www.midnightvibes.online/**", "midnightvibes://**"]
 # Playing without an account uses anonymous sign-in
 enable_anonymous_sign_ins = true
 
