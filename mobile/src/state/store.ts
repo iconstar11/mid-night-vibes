@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 
 import { aiCardId, cardId } from "@/game/cards";
@@ -29,6 +30,8 @@ type State = {
   ai: { state: AiState; tod: Record<CardType, string[]> | null; wheel: Wedge[] | null; note: string; limited: boolean };
   /** Set from the account: Premium players get an occasional "Picked for you" card from their stars. */
   premium: boolean;
+  /** True once the saved game (18+ confirmation, players, mood…) has been read back from the device. */
+  hydrated: boolean;
 
   confirmAdult(): void;
   setGroup(g: GroupId): void;
@@ -134,6 +137,7 @@ export const useGame = create<State>((set, get) => {
     mood: "",
     ai: { state: "off", tod: null, wheel: null, note: "", limited: false },
     premium: false,
+    hydrated: false,
 
     confirmAdult: () => set({ adult: true }),
     snapshot: () => {
@@ -213,4 +217,35 @@ export const useGame = create<State>((set, get) => {
       return s.ai.wheel?.length ? s.ai.wheel : WHEELS[s.group === "couple" ? "couple" : "group"];
     },
   };
+});
+
+// ---------- Remember the game on this device ----------
+// The 18+ confirmation, group, players, heat, mood and turn survive a reload, leaving to pay, or reopening the app,
+// so nobody types names again. Stored only on this device.
+const SAVE_KEY = "mv.game";
+type Saved = GameSnapshot & { roster: Player[]; at: number };
+
+AsyncStorage.getItem(SAVE_KEY)
+  .then((raw) => {
+    const saved = raw ? (JSON.parse(raw) as Saved) : null;
+    if (saved) {
+      const g = useGame.getState();
+      useGame.setState({ adult: g.adult || saved.adult, roster: g.roster.length ? g.roster : saved.roster ?? [] });
+      if (!g.players.length) useGame.setState({ group: saved.group, pair: saved.pair });
+      g.restore(saved); // players, heat, turn, mood (only if no game is going in memory)
+    }
+  })
+  .catch(() => {})
+  .finally(() => useGame.setState({ hydrated: true }));
+
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
+useGame.subscribe((s, prev) => {
+  if (!s.hydrated) return; // don't overwrite the saved game before it's been read
+  if (s.adult === prev.adult && s.group === prev.group && s.pair === prev.pair && s.players === prev.players &&
+      s.roster === prev.roster && s.heat === prev.heat && s.turn === prev.turn && s.mood === prev.mood) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    const data: Saved = { ...useGame.getState().snapshot(), roster: useGame.getState().roster, at: Date.now() };
+    AsyncStorage.setItem(SAVE_KEY, JSON.stringify(data)).catch(() => {});
+  }, 300);
 });

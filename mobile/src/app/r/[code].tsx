@@ -25,6 +25,8 @@ export default function Viewer() {
   const ready = useAuth((a) => a.ready);
   const email = useAuth((a) => a.email);
   const room = String(code ?? "").toUpperCase();
+  const hydrated = useGame((g) => g.hydrated);
+  if (!hydrated) return null; // the saved 18+ confirmation is still loading
   if (!adult) return <GateView lead="You've been invited to a live game. Watch along as the host plays." onConfirm={() => bump(1)} />;
   if (!ready) return <Screen><Waiting text="One moment…" /></Screen>;
   if (!email) return <SignInToJoin code={room} />;
