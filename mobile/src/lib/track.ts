@@ -37,8 +37,11 @@ type Row = { session_id: string; name: EventName; props: Record<string, Value>; 
 const queue: Row[] = [];
 let timer: ReturnType<typeof setTimeout> | undefined;
 
+// Testing on localhost shouldn't count as real players in the stats
+const isLocal = Platform.OS === "web" && typeof window !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+
 export function track(name: EventName, props: Record<string, unknown> = {}) {
-  if (!supabase || !useAnalytics.getState().on) return;
+  if (!supabase || !useAnalytics.getState().on || isLocal) return;
   queue.push({ session_id: sessionId, name, props: cleanProps(props), at: new Date().toISOString() });
   if (queue.length >= 15) flush();
   else { clearTimeout(timer); timer = setTimeout(flush, 4000); }
