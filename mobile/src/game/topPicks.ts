@@ -4,7 +4,6 @@ export const TOP_PICKS: ReadonlySet<string> = new Set([
   "c-11b6wdb", // tod couple truth h1: What's the most romantic thing you've imagined us doing?
   "c-11pco02", // tod couple truth h3: What's a fantasy you'd want to try with me this year?
   "c-11yrobu", // tod couple truth h1: What was your first impression of me?
-  "c-1468e7d", // wheel group wedge h3: Tell each player what you find most attractive about them.
   "c-152qkds", // tod group dare h1: Do an impression of another player until someone guesses who.
   "c-15e2lne", // tod group dare h2: Slow dance with {target} for 20 seconds, if they're up for it.
   "c-164od6l", // tod group truth h1: What's the most embarrassing thing you've done to impress a crush?
@@ -12,7 +11,6 @@ export const TOP_PICKS: ReadonlySet<string> = new Set([
   "c-18sf6rv", // tod boys dare h3: Let the group write your dating profile bio and read it aloud.
   "c-193knz3", // wheel couple wedge h2: Hold eye contact for 30 seconds, then kiss.
   "c-1aih4li", // tod boys dare h1: Let the group pick your nickname for the night.
-  "c-1al1xqj", // wheel couple wedge h3: Tell your partner three things about them that turn you on.
   "c-1bcg49c", // tod couple truth h2: Where's the most daring place you've wanted to kiss me?
   "c-1bqyytu", // tod group dare h3: Kiss {target} on the cheek, if they're up for it.
   "c-1cprxdf", // tod group truth h3: What's a fantasy you'd admit out loud tonight?

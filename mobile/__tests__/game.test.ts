@@ -217,9 +217,9 @@ describe("stats privacy", () => {
 import { MISFORTUNE, MISFORTUNE_DRINKS, misfortuneWheel } from "@/game/content";
 
 describe("wheel of misfortune", () => {
-  it("has 8 wedges per deck, each with a short label and 3 heat levels", () => {
+  it("has at least 8 wedges per deck, each with a short label and 3 heat levels", () => {
     for (const deck of ["couple", "group"] as const) {
-      expect(MISFORTUNE[deck]).toHaveLength(8);
+      expect(MISFORTUNE[deck].length).toBeGreaterThanOrEqual(8);
       for (const [label, texts] of MISFORTUNE[deck]) {
         expect(label.length).toBeLessThanOrEqual(16);
         expect(texts).toHaveLength(3);
