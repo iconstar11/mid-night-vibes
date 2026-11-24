@@ -1,10 +1,11 @@
 // Countdown for timed dares ("Give a 1-minute massage"). Sits on the card; give it a `key` per card so it resets.
-import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import { clock } from "@/game/timer";
+import { usePrefs } from "@/lib/prefs";
+import { buzz, play } from "@/lib/sound";
 import { font, useColors } from "@/theme/tokens";
 
 const SIZE = 56;
@@ -14,33 +15,11 @@ const CIRC = 2 * Math.PI * R;
 
 type Phase = "ready" | "running" | "paused" | "done";
 
-/** A short two-note chime on web, a buzz on phones. */
+/** Time's up: the timer sound (if Sounds is on) and a buzz on phones (if Vibration is on). */
 function alarm() {
-  if (Platform.OS !== "web") {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    return;
-  }
-  try {
-    navigator.vibrate?.([180, 90, 180]);
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    const ac = new Ctx();
-    [880, 1175].forEach((hz, i) => {
-      const t = ac.currentTime + i * 0.22;
-      const o = ac.createOscillator();
-      const g = ac.createGain();
-      o.frequency.value = hz;
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
-      o.connect(g).connect(ac.destination);
-      o.start(t);
-      o.stop(t + 0.4);
-    });
-    setTimeout(() => ac.close().catch(() => {}), 1200);
-  } catch {
-    // Sound is a nice-to-have
-  }
+  play("timer");
+  buzz("success");
+  if (Platform.OS === "web" && usePrefs.getState().vibration) navigator.vibrate?.([180, 90, 180]);
 }
 
 export function Timer({ seconds }: { seconds: number }) {
@@ -61,7 +40,7 @@ export function Timer({ seconds }: { seconds: number }) {
 
   function toggle() {
     if (phase === "running") { setPhase("paused"); return; }
-    if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    buzz("pick");
     const from = phase === "done" ? seconds * 1000 : left;
     endsAt.current = Date.now() + from;
     setLeft(from);

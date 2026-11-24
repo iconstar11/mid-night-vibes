@@ -1,4 +1,3 @@
-import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
@@ -17,12 +16,13 @@ import { to, wait } from "@/lib/anim";
 import { takeGuestTurn } from "@/lib/guestTurns";
 import { savePending } from "@/lib/pending";
 import { useAuth } from "@/lib/auth";
+import { buzz, play } from "@/lib/sound";
 import { track } from "@/lib/track";
 import { host } from "@/lib/room";
 import { current, nextUp, useGame } from "@/state/store";
 import { HEAT_NAMES, font, useColors } from "@/theme/tokens";
 
-const tap = () => { if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {}); };
+const tap = () => buzz("pick");
 
 export default function TruthOrDare() {
   return <AdultOnly needPlayers><Game /></AdultOnly>;
@@ -85,6 +85,7 @@ function Game() {
     const drawn = draw(type);
     host.card(drawn, false);
     shown(drawn);
+    play("flip");
     await motion.flip(() => setCard(drawn));
     setBusy(false);
   }
@@ -97,7 +98,7 @@ function Game() {
     const type: CardType = Math.random() < 0.5 ? "truth" : "dare";
     const drawn = draw(type);
     host.card(drawn, true); // viewers run the same shuffle and land on the same card
-    await motion.shuffle(type, setShuffleText);
+    await motion.shuffle(type, (t) => { setShuffleText(t); play("tick", { speed: 0.6 }); });
     if (!motion.reduce) {
       const pulse = type === "truth" ? pulseT : pulseD;
       await to(pulse, 1.08, { duration: 160 }); await to(pulse, 1, { duration: 160 });
@@ -105,6 +106,7 @@ function Game() {
     tap();
     await wait(motion.reduce ? 0 : 250);
     shown(drawn);
+    play("flip");
     await motion.flip(() => { setShuffleText(null); setCard(drawn); });
     setBusy(false);
   }
@@ -113,6 +115,7 @@ function Game() {
     if (busy) return;
     setBusy(true); tap();
     ended("card_done");
+    play("done");
     host.next();
     await motion.next(() => { nextTurn(); setCard(null); });
     setBusy(false);

@@ -34,7 +34,7 @@ def previous_answers() -> dict[str, dict]:
     if not OUT.exists():
         return {}
     keep = {}
-    for sheet in ["Truths", "Dares", "Spin the Wheel"]:
+    for sheet in ["Truths", "Dares", "Spin the Wheel", "Misfortune"]:
         try:
             df = pd.read_excel(OUT, sheet_name=sheet, dtype=str).fillna("")
         except ValueError:
@@ -49,12 +49,12 @@ def main() -> None:
     cards = load_cards()
     missing = sorted(set(cards["text"]) - set(RATINGS))
     if missing:
-        raise SystemExit("No Claude rating yet for:\n  " + "\n  ".join(missing))
+        print(f"{len(missing)} cards have no Claude rating yet (left blank).")
     old = previous_answers()
     cards["deck"] = cards["group"].map(DECKS)
     cards["heat_name"] = cards["heat"].map(HEATS)
-    cards["claude_rating"] = cards["text"].map(lambda t: RATINGS[t][0])
-    cards["claude_reason"] = cards["text"].map(lambda t: RATINGS[t][1])
+    cards["claude_rating"] = cards["text"].map(lambda t: RATINGS[t][0] if t in RATINGS else None)
+    cards["claude_reason"] = cards["text"].map(lambda t: RATINGS[t][1] if t in RATINGS else "Not rated yet")
     for k in YOURS:
         cards[k] = cards["id"].map(lambda i, k=k: old.get(i, {}).get(k, ""))
     cards["your_rating"] = pd.to_numeric(cards["your_rating"], errors="coerce")
@@ -62,7 +62,8 @@ def main() -> None:
     sheets = {
         "Truths": cards[cards["type"] == "truth"],
         "Dares": cards[cards["type"] == "dare"],
-        "Spin the Wheel": cards[cards["type"] == "wedge"],
+        "Spin the Wheel": cards[(cards["type"] == "wedge") & (cards["game"] == "wheel")],
+        "Misfortune": cards[cards["game"] == "misfortune"],
     }
     OUT.parent.mkdir(exist_ok=True)
     with pd.ExcelWriter(OUT, engine="openpyxl") as xl:
@@ -76,7 +77,7 @@ def main() -> None:
             "Send the file back (or tell me) and I'll apply your rewrites and removals to the cards and update top picks.",
         ]}).to_excel(xl, sheet_name="How to rate", index=False)
         for name, df in sheets.items():
-            cols = ["deck", "heat_name"] + (["label"] if name == "Spin the Wheel" else []) + \
+            cols = ["deck", "heat_name"] + (["label"] if name in ("Spin the Wheel", "Misfortune") else []) + \
                    ["text", "claude_rating", "claude_reason", "your_rating", "difference", "decision", "rewrite", "notes", "id"]
             order = {"couple": 0, "group": 1, "girls": 2, "boys": 3}
             out = df.assign(_o=df["group"].map(order)).sort_values(["_o", "heat"], kind="stable").drop(columns=["_o", "heat"])
@@ -139,7 +140,7 @@ def main() -> None:
     for col in "ABCDEFGHI":
         s.column_dimensions[col].width = 15
     wb["How to rate"].column_dimensions["A"].width = 130
-    wb._sheets = [wb[n] for n in ["How to rate", "Summary", "Truths", "Dares", "Spin the Wheel"]]
+    wb._sheets = [wb[n] for n in ["How to rate", "Summary", "Truths", "Dares", "Spin the Wheel", "Misfortune"]]
     wb.save(OUT)
 
     counts = {k: len(v) for k, v in sheets.items()}

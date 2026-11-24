@@ -4,6 +4,8 @@ import { type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, type PressableProps, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
+import { setPrefs, usePrefs } from "@/lib/prefs";
+import { play } from "@/lib/sound";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGame } from "@/state/store";
@@ -119,6 +121,26 @@ export function RoundBtn({ label, icon, onPress, a11y }: { label?: string; icon?
 }
 
 /** Game header: back, whose turn, heat pill (tap cycles the heat). */
+/** Speaker button on the game screens: sounds on/off (saved on the device, works for guests). */
+export function SoundToggle() {
+  const c = useColors();
+  const on = usePrefs((p) => p.sound);
+  return (
+    <Pressable onPress={() => { setPrefs({ sound: !on }); if (!on) play("done", { force: true }); }} hitSlop={6}
+      accessibilityRole="switch" accessibilityState={{ checked: on }} accessibilityLabel={on ? "Sounds on. Tap to mute" : "Sounds off. Tap to turn on"}
+      style={[s.sound, { borderColor: c.line, backgroundColor: c.surface }]}>
+      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+        <Path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill={c.ink} />
+        {on ? (
+          <Path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" stroke={c.ink} strokeWidth={2} strokeLinecap="round" />
+        ) : (
+          <Path d="M16 9.5l5 5M21 9.5l-5 5" stroke={c.rose} strokeWidth={2} strokeLinecap="round" />
+        )}
+      </Svg>
+    </Pressable>
+  );
+}
+
 export function GameBar({ game, who }: { game: string; who: string }) {
   const c = useColors();
   const heat = useGame((g) => g.heat);
@@ -131,6 +153,7 @@ export function GameBar({ game, who }: { game: string; who: string }) {
         <Text style={[s.turnBig, { color: c.ink }]} numberOfLines={1}>{who}</Text>
         <LiveBadge />
       </View>
+      <SoundToggle />
       <Pressable onPress={() => setHeat(((heat % 3) + 1) as 1 | 2 | 3)} accessibilityLabel="Change heat level"
         style={[s.heatPill, { borderColor: c.line, backgroundColor: c.surface }]}>
         <Text style={[s.heatPillText, { color: c.ink }]}>{HEAT_NAMES[heat - 1]} </Text>
@@ -163,6 +186,7 @@ export const s = StyleSheet.create({
   turn: { flex: 1, alignItems: "center", minWidth: 0 },
   turnSmall: { fontFamily: font.semibold, fontSize: 11, letterSpacing: 1.1, textTransform: "uppercase" },
   turnBig: { fontFamily: font.display, fontSize: 26, lineHeight: 30 },
+  sound: { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   heatPill: { height: 44, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1.5, flexDirection: "row", alignItems: "center" },
   heatPillText: { fontFamily: font.semibold, fontSize: 14.5 },
 });

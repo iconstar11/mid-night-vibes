@@ -8,6 +8,7 @@ import type { Card, GroupId, PairId, Wedge } from "@/game/types";
 import type { SpinPlan } from "@/game/wheel";
 import { type AiState, useGame } from "@/state/store";
 import { ensureSession, supabase } from "./supabase";
+import { misfortuneWheel } from "@/game/content";
 import { usePrefs } from "./prefs";
 import { track } from "./track";
 
@@ -25,6 +26,8 @@ export type Snapshot = {
   aiState: AiState;
   screen: Screen;
   wedges: Wedge[];
+  /** Which wheel the host is on (older hosts don't send it: treat as "spin"). */
+  wheelMode?: "spin" | "misfortune";
   card: Card | null;
   result: Result | null;
 };
@@ -115,7 +118,11 @@ function snapshot(): Snapshot {
   return {
     group: g.group, pair: g.pair, names: g.players.map((p) => p.name), turn: g.turn, heat: g.heat,
     // Viewers only get the mood if the host chose to show it on screen
-    mood: usePrefs.getState().showMood ? g.mood : "", aiState: g.ai.state, wedges: g.wedges(), ...hostView,
+    mood: usePrefs.getState().showMood ? g.mood : "", aiState: g.ai.state, ...hostView,
+    wheelMode: usePrefs.getState().wheelMode,
+    wedges: usePrefs.getState().wheelMode === "misfortune"
+      ? misfortuneWheel(g.group === "couple" ? "couple" : "group", usePrefs.getState().drinks)
+      : g.wedges(),
   };
 }
 

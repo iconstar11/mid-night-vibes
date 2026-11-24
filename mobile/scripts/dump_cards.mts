@@ -3,10 +3,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 
 import { cardId } from "../src/game/cards.ts";
-import { COUPLE, EXTRA, GROUP, WHEELS } from "../src/game/content.ts";
+import { COUPLE, EXTRA, GROUP, MISFORTUNE, MISFORTUNE_DRINKS, WHEELS } from "../src/game/content.ts";
 import { PROMOTED } from "../src/game/promoted.ts";
 
-type Row = { id: string; game: "tod" | "wheel"; group: string; type: string; heat: number; label: string; text: string; origin: "built-in" | "promoted AI" };
+type Row = { id: string; game: "tod" | "wheel" | "misfortune"; group: string; type: string; heat: number; label: string; text: string; origin: "built-in" | "promoted AI" };
 const rows: Row[] = [];
 const heats = ["Flirty", "Steamy", "Spicy"];
 
@@ -20,6 +20,12 @@ for (const [group, deck] of decks) {
 for (const group of ["couple", "group"] as const) {
   for (const [label, texts] of WHEELS[group]) {
     texts.forEach((text, i) => rows.push({ id: cardId(text), game: "wheel", group, type: "wedge", heat: texts.length === 1 ? 0 : i + 1, label, text, origin: "built-in" }));
+  }
+}
+// Wheel of Misfortune forfeits (and the optional drink wedges), listed as their own game
+for (const group of ["couple", "group"] as const) {
+  for (const [label, texts] of [...MISFORTUNE[group], ...MISFORTUNE_DRINKS]) {
+    texts.forEach((text, i) => rows.push({ id: cardId(text), game: "misfortune", group, type: "wedge", heat: i + 1, label, text, origin: "built-in" }));
   }
 }
 for (const p of PROMOTED) rows.push({ id: cardId(p.text), game: "tod", group: p.deck, type: p.type, heat: p.heat, label: heats[p.heat - 1], text: p.text, origin: "promoted AI" });

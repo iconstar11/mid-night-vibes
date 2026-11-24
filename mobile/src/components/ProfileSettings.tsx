@@ -4,7 +4,8 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 import type { Into, Sex } from "@/game/types";
-import { setShowMood, usePrefs } from "@/lib/prefs";
+import { setPrefs, setShowMood, usePrefs } from "@/lib/prefs";
+import { router } from "expo-router";
 import { setAnalytics, useAnalytics } from "@/lib/track";
 import { addSavedPlayer, removeSavedPlayer, saveProfile, updateSavedPlayer, useProfile, type SavedPlayer, type Theme } from "@/lib/profile";
 import { font, useColors } from "@/theme/tokens";
@@ -35,6 +36,9 @@ export function ProfileSettings() {
   const [note, run] = useSavedNote();
   const stats = useAnalytics((a) => a.on);
   const showMood = usePrefs((p) => p.showMood);
+  const sound = usePrefs((p) => p.sound);
+  const vibration = usePrefs((p) => p.vibration);
+  const drinks = usePrefs((p) => p.drinks);
   useEffect(() => { setName(p.name); }, [p.name]);
   const input = [st.input, { borderColor: c.line, backgroundColor: c.bg, color: c.ink }];
 
@@ -76,6 +80,20 @@ export function ProfileSettings() {
         <Label>Mood on the game screens</Label>
         <Seg<"hide" | "show"> value={showMood ? "show" : "hide"} onChange={(v) => { setShowMood(v === "show"); run(Promise.resolve("")); }} accent={c.rose} options={[["hide", "Hidden"], ["show", "Visible"]]} />
         <Fine style={{ textAlign: "left", marginTop: 6 }}>Hidden blurs the mood on the game screens and Home (and keeps it from people watching a live game). You still see it while choosing it. Saved on this device.</Fine>
+      </View>
+      <View>
+        <Label>Sounds</Label>
+        <Seg<"on" | "off"> value={sound ? "on" : "off"} onChange={(v) => { setPrefs({ sound: v === "on" }); run(Promise.resolve("")); }} accent={c.rose} options={[["on", "On"], ["off", "Off"]]} />
+        <Btn kind="quiet" label="Preview sounds and pick a style" onPress={() => router.push("/sounds")} />
+      </View>
+      <View>
+        <Label>Vibration</Label>
+        <Seg<"on" | "off"> value={vibration ? "on" : "off"} onChange={(v) => { setPrefs({ vibration: v === "on" }); run(Promise.resolve("")); }} accent={c.rose} options={[["on", "On"], ["off", "Off"]]} />
+        <Fine style={{ textAlign: "left", marginTop: 6 }}>Small buzzes on phones when the wheel ticks and cards are picked.</Fine>
+      </View>
+      <View>
+        <Label>Drinks in Wheel of Misfortune</Label>
+        <Seg<"off" | "on"> value={drinks ? "on" : "off"} onChange={(v) => { setPrefs({ drinks: v === "on" }); run(Promise.resolve("")); }} accent={c.rose} options={[["off", "No drinks"], ["on", "Include drinks"]]} />
       </View>
       <View>
         <Label>Anonymous game stats</Label>

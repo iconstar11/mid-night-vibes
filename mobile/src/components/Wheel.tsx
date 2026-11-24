@@ -1,4 +1,3 @@
-import * as Haptics from "expo-haptics";
 import { forwardRef, memo, useEffect, useImperativeHandle, useRef } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
@@ -11,6 +10,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import type { Wedge } from "@/game/types";
 import { TAU, WINDUP_MS, WINDUP_RAD, easeOutQuint, spinTarget, under, type SpinPlan } from "@/game/wheel";
 import { easeIn, to, wait } from "@/lib/anim";
+import { buzz, play } from "@/lib/sound";
 import { font, useColors, type Colors } from "@/theme/tokens";
 
 const SIZE = 760; // drawing units, same as the web canvas
@@ -18,9 +18,13 @@ const R = SIZE / 2;
 const INNER = R - 34;
 const CREAM = "#FFF5F3";
 const WEDGE_COLORS = (c: Colors) => [c.wine, c.plum, c.rose, c.plum];
+// Wheel of Misfortune: darker, ember reds and near-black, so it's obvious which wheel you're on
+const MISFORTUNE_COLORS = ["#7A1020", "#1E0A10", "#A8321E", "#1E0A10"];
+export type WheelTheme = "spin" | "misfortune";
 
 /** The disc: drawn once per wedge set (and highlight), never per frame. */
-const Disc = memo(function Disc({ wedges, hi, c }: { wedges: Wedge[]; hi: number; c: Colors }) {
+const Disc = memo(function Disc({ wedges, hi, c, theme }: { wedges: Wedge[]; hi: number; c: Colors; theme: WheelTheme }) {
+  const colors = theme === "misfortune" ? MISFORTUNE_COLORS : WEDGE_COLORS(c);
   const n = wedges.length, a = TAU / n;
   const arc = (i: number, r: number) => {
     const a0 = i * a, a1 = (i + 1) * a;
@@ -31,7 +35,7 @@ const Disc = memo(function Disc({ wedges, hi, c }: { wedges: Wedge[]; hi: number
       <Circle cx={R} cy={R} r={R - 2} fill={c.brass} />
       {wedges.map((w, i) => (
         <G key={i}>
-          <Path d={arc(i, INNER)} fill={WEDGE_COLORS(c)[i % 4]} stroke={c.brass} strokeWidth={3} />
+          <Path d={arc(i, INNER)} fill={colors[i % 4]} stroke={c.brass} strokeWidth={3} />
           {i === hi && <Path d={arc(i, INNER - 2)} fill="rgba(255,236,200,0.28)" stroke={CREAM} strokeWidth={6} />}
         </G>
       ))}
@@ -75,9 +79,11 @@ type Props = {
   hubLabel?: string;
   /** Tap on Spin, or a flick with enough speed. dir 1 = clockwise. */
   onRequestSpin(power: number, dir: 1 | -1, windup: boolean): void;
+  /** Colours: the normal wheel, or the darker Wheel of Misfortune. */
+  theme?: WheelTheme;
 };
 
-export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi, disabled, hubLabel = "Spin", onRequestSpin }, ref) {
+export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi, disabled, hubLabel = "Spin", onRequestSpin, theme = "spin" }, ref) {
   const c = useColors();
   const reduce = useReducedMotion();
   const n = wedges.length;
@@ -116,7 +122,8 @@ export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi,
     lastTick.current = now;
     const amp = Math.min(28, 10 + 2600 / Math.max(gap, 60)) * (dirRef.current > 0 ? -1 : 1);
     pointer.value = withSequence(withTiming(amp, { duration: 55 }), withTiming(0, { duration: 110, easing: Easing.out(Easing.quad) }));
-    if (gap > 110 && Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    play("tick", { speed: Math.min(1, 90 / gap) }); // quieter and lower as the wheel slows
+    if (gap > 110) buzz("tick");
   }
   useAnimatedReaction(
     () => under(rot.value, n),
@@ -130,6 +137,7 @@ export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi,
       if (typeof start === "number") rot.value = start;
       spinning.value = true;
       dirRef.current = plan.dir;
+      play("spin");
       if (plan.windup && !reduce) await to(rot, rot.value - plan.dir * WINDUP_RAD, { duration: WINDUP_MS, easing: Easing.out(Easing.quad) });
       const { end, duration } = spinTarget(rot.value, n, plan, reduce);
       await to(rot, end, { duration, easing: easeOutQuint });
@@ -181,7 +189,7 @@ export const Wheel = forwardRef<WheelHandle, Props>(function Wheel({ wedges, hi,
       <GestureDetector gesture={pan}>
         <Animated.View style={[st.disc, disc]} onLayout={(e) => { size.value = e.nativeEvent.layout.width; }}
           accessible accessibilityRole="image" accessibilityLabel={"Wheel: " + wedges.map((w) => w[0]).join(", ")}>
-          <Disc wedges={wedges} hi={hi} c={c} />
+          <Disc wedges={wedges} hi={hi} c={c} theme={theme} />
         </Animated.View>
       </GestureDetector>
       <Animated.View style={[st.pointer, pin]} pointerEvents="none">

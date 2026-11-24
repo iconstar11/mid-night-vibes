@@ -70,7 +70,7 @@ def main() -> None:
     cards["suggested"] = cards["id"].map(lambda i: "suggested" if i in suggested else "")
     for k in ["shown", "stars", "done_rate", "skip_rate", "score"]:
         cards[k] = cards["id"].map(lambda i, k=k: stats["cards"].get(i, {}).get(k))
-    cards["game"] = cards["game"].map({"tod": "Truth or Dare", "wheel": "Spin the Wheel"})
+    cards["game"] = cards["game"].map({"tod": "Truth or Dare", "wheel": "Spin the Wheel", "misfortune": "Wheel of Misfortune"})
     cards = cards.rename(columns={"label": "heat_or_wedge"})
     cards = cards[["top_pick", "suggested", "game", "group", "type", "heat", "heat_or_wedge", "text", "origin",
                    "shown", "stars", "done_rate", "skip_rate", "score", "id"]]

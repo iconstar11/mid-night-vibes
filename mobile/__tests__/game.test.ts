@@ -194,3 +194,35 @@ describe("stats privacy", () => {
     expect((cleanProps({ ref: "x".repeat(500) }).ref as string).length).toBe(60);
   });
 });
+
+import { MISFORTUNE, MISFORTUNE_DRINKS, misfortuneWheel } from "@/game/content";
+
+describe("wheel of misfortune", () => {
+  it("has 8 wedges per deck, each with a short label and 3 heat levels", () => {
+    for (const deck of ["couple", "group"] as const) {
+      expect(MISFORTUNE[deck]).toHaveLength(8);
+      for (const [label, texts] of MISFORTUNE[deck]) {
+        expect(label.length).toBeLessThanOrEqual(16);
+        expect(texts).toHaveLength(3);
+      }
+    }
+  });
+  it("drinks swap two wedges and keep 8", () => {
+    for (const deck of ["couple", "group"] as const) {
+      const w = misfortuneWheel(deck, true);
+      expect(w).toHaveLength(8);
+      expect(w.slice(-2)).toEqual(MISFORTUNE_DRINKS);
+      expect(misfortuneWheel(deck, false)).toBe(MISFORTUNE[deck]);
+    }
+  });
+  it("food and touch forfeits say how to opt out", () => {
+    const all = [...MISFORTUNE.couple, ...MISFORTUNE.group];
+    for (const [label, texts] of all) {
+      if (label === "Chilli") texts.forEach((t) => expect(t).toMatch(/skip if/i));
+      if (label === "Spank") texts.slice(1).forEach((t) => expect(t).toMatch(/say stop|up for it/i));
+    }
+  });
+  it("stats may record which wheel", () => {
+    expect(cleanProps({ mode: "misfortune" })).toEqual({ mode: "misfortune" });
+  });
+});

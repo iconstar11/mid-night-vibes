@@ -1,10 +1,10 @@
 // ☆ / ★ on a card or wheel result: "I love this one". Helps find the best cards (and tailors Premium AI picks).
-import * as Haptics from "expo-haptics";
 import { Platform, Pressable, StyleSheet, Text } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 
 import type { CardSource } from "@/game/cards";
 import { useAuth } from "@/lib/auth";
+import { buzz, play } from "@/lib/sound";
 import { toggleStar, useStars } from "@/lib/stars";
 import { useGame } from "@/state/store";
 import { useColors } from "@/theme/tokens";
@@ -26,7 +26,8 @@ export function StarButton({ card, game, heat, corner }: Props) {
 
   const press = () => {
     toggleStar({ id: card.id!, source: card.source, game, type: card.type, heat, group: useGame.getState().group, guest: !useAuth.getState().email });
-    if (Platform.OS !== "web") Haptics.selectionAsync().catch(() => {});
+    if (!on) play("star");
+    buzz("pick");
     pop.value = withSequence(withTiming(1.35, { duration: 120 }), withTiming(1, { duration: 160 }));
   };
 

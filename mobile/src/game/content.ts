@@ -423,3 +423,104 @@ export const GROUPS: Record<GroupId, { name: string; moods: string[] }> = {
 };
 
 export const PAIRS: Record<PairId, [string, string]> = {"mf":["Him","Her"],"ff":["Her","Her"],"mm":["Him","Him"],"any":["You","Your partner"]};
+
+// Wheel of Misfortune: bad luck when it lands on you. Forfeits, not dares; you can always skip.
+// Food and consent are in the wording (skip if allergic, you can say stop, if they're up for it).
+export const MISFORTUNE: Record<"couple" | "group", Wedge[]> = {
+ couple: [
+  ["Chilli", [
+   "Eat a small piece of chilli or a drop of hot sauce. Skip if you can't have it.",
+   "Eat a slice of chilli and keep a straight face for 10 seconds. Skip if you can't have it.",
+   "Hot sauce challenge: your partner picks how much. Skip if you can't have it.",
+  ]],
+  ["Lemon", [
+   "Bite into a lemon wedge without pulling a face.",
+   "Bite a lemon wedge, then tell your partner something sweet with a straight face.",
+   "Suck a lemon wedge, then give your partner a 10-second kiss.",
+  ]],
+  ["Spank", [
+   "Your partner gives you a playful tap on the bum.",
+   "Your partner gives you three playful spanks. You can say stop.",
+   "Your partner spanks you as many times as they like. You can say stop any time.",
+  ]],
+  ["Ice", [
+   "Hold an ice cube in your hand until it starts to melt.",
+   "Your partner slides an ice cube along the back of your neck.",
+   "Your partner traces an ice cube wherever they choose. You can say stop.",
+  ]],
+  ["Servant", [
+   "Be your partner's servant until your next turn: snacks, drinks, compliments.",
+   "Do whatever your partner says until your next turn (within reason).",
+   "Your partner gives you three orders. You must obey (you can say stop).",
+  ]],
+  ["Silence", [
+   "No talking until your next turn. Every word costs a kiss.",
+   "No talking until your next turn, but your partner can try to make you laugh.",
+   "No talking or touching your partner until your next turn.",
+  ]],
+  ["Lose a layer", [
+   "Take off your shoes or socks.",
+   "Take off an accessory or one item of clothing.",
+   "Take off one item of clothing your partner chooses.",
+  ]],
+  ["Double trouble", [
+   "Your next dare counts twice.",
+   "Your next dare counts twice, and your partner picks it.",
+   "Your partner picks your next two dares.",
+  ]],
+ ],
+ group: [
+  ["Chilli", [
+   "Eat a small piece of chilli or a drop of hot sauce. Skip if you can't have it.",
+   "Eat a slice of chilli and keep a straight face for 10 seconds. Skip if you can't have it.",
+   "Hot sauce challenge: the group picks how much. Skip if you can't have it.",
+  ]],
+  ["Lemon", [
+   "Bite into a lemon wedge without pulling a face.",
+   "Bite a lemon wedge, then give everyone a compliment with a straight face.",
+   "Bite a lemon wedge and do your best seductive look while you do.",
+  ]],
+  ["Spank", [
+   "{target} gives you a playful tap on the shoulder, if they're up for it.",
+   "{target} gives you a playful spank, if you're both up for it. You can say stop.",
+   "{target} gives you three playful spanks, if you're both up for it. You can say stop.",
+  ]],
+  ["Ice", [
+   "Hold an ice cube in your hand until it starts to melt.",
+   "Hold an ice cube against the back of your neck for 15 seconds.",
+   "{target} slides an ice cube down your back, if you're both up for it.",
+  ]],
+  ["Royal servant", [
+   "Get everyone a snack or a glass of water.",
+   "Be the group's servant until your next turn.",
+   "Be {target}'s servant until your next turn, if they're up for it.",
+  ]],
+  ["Embarrass", [
+   "Do your most embarrassing dance for 15 seconds.",
+   "Do your best impression of someone in the room until they guess who.",
+   "Do your most seductive dance for 20 seconds.",
+  ]],
+  ["Phone forfeit", [
+   "Let the group choose your phone wallpaper for the night.",
+   "Let the group read your last sent text out loud.",
+   "Let the group post an emoji on your status (they pick it).",
+  ]],
+  ["Bad luck", [
+   "You also take the next player's turn.",
+   "You take the next player's turn, and they pick your dare.",
+   "Spin the misfortune wheel again.",
+  ]],
+ ],
+};
+
+// With "Drinks in Misfortune" on, these replace the last two wedges of the misfortune wheel.
+export const MISFORTUNE_DRINKS: Wedge[] = [
+ ["Sip", ["Take a sip of your drink.", "Take two sips of your drink.", "Finish your drink."]],
+ ["Pour up", ["Top up everyone's glass.", "Choose someone to take a sip with you.", "Everyone drinks, you pick who goes first."]],
+];
+
+/** The misfortune wheel for a deck, with the drink wedges swapped in when drinks are on. Always 8 wedges. */
+export function misfortuneWheel(deck: "couple" | "group", drinks: boolean): Wedge[] {
+ const base = MISFORTUNE[deck];
+ return drinks ? [...base.slice(0, base.length - MISFORTUNE_DRINKS.length), ...MISFORTUNE_DRINKS] : base;
+}

@@ -10,6 +10,7 @@ import { Wheel, type WheelHandle } from "@/components/Wheel";
 import { Btn, Fine, Screen, Title } from "@/components/ui";
 import { GROUPS } from "@/game/content";
 import { useAuth } from "@/lib/auth";
+import { play } from "@/lib/sound";
 import { savePending } from "@/lib/pending";
 import { track } from "@/lib/track";
 import type { Card, Wedge } from "@/game/types";
@@ -211,6 +212,7 @@ function ViewWheel({ snap, onResult }: { snap: Snapshot; onResult: (r: Result | 
       onResult(null); setHi(-1);
       const win = await wheel.current.spin(e.plan, e.start);
       setHi(win);
+      play(snap.wheelMode === "misfortune" ? "misfortune" : "land");
       busy.current = false;
     }
     if (e.t === "result") { onResult(e.r); if (!e.r) setHi(-1); }
@@ -219,7 +221,7 @@ function ViewWheel({ snap, onResult }: { snap: Snapshot; onResult: (r: Result | 
   return (
     <View style={{ flex: 1 }}>
       <View style={st.center}>
-        <Wheel ref={wheel} wedges={shown} hi={hi} disabled hubLabel="Live" onRequestSpin={() => {}} />
+        <Wheel ref={wheel} wedges={shown} hi={hi} disabled hubLabel="Live" onRequestSpin={() => {}} theme={snap.wheelMode === "misfortune" ? "misfortune" : "spin"} />
         <Fine>{whoseTurn(snap)}'s turn. The host spins.</Fine>
       </View>
     </View>
