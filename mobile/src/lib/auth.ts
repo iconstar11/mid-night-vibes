@@ -140,7 +140,9 @@ export async function signUp(email: string, password: string, name: string): Pro
   if (!validEmail(email)) return { ok: false, error: "That doesn't look like an email address." };
   if (password.length < 8) return { ok: false, error: "Use a password of at least 8 characters." };
   await beforeSwitch();
-  const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: name.trim().slice(0, 40) || null } } });
+  // The confirmation email links back here (not Supabase's default Site URL), which signs them straight in
+  const emailRedirectTo = Platform.OS === "web" ? `${window.location.origin}/account` : Linking.createURL("account");
+  const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo, data: { display_name: name.trim().slice(0, 40) || null } } });
   if (error) return { ok: false, error: friendly(error.message) };
   // Supabase hides "already registered" behind an empty identities list when confirmation is on
   if (data.user && data.user.identities?.length === 0) return { ok: false, error: "That email already has an account. Sign in instead." };
