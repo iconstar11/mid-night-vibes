@@ -1,5 +1,7 @@
 // Supabase Edge Function "billing": Premium payments with Paystack.
-//   { action: "config" }                   → { cardCurrency }: what cards are charged in (KES until USD is enabled)
+//   { action: "config" }                   → { cardCurrency, paymentsOpen }: KES until USD is enabled; whether buying is on
+// Buying is closed until the PAYMENTS_OPEN secret is "true" (Paystack approval): card and mpesa are refused,
+// and the app shows "Premium is coming soon". Open with: npx supabase secrets set PAYMENTS_OPEN=true
 //   { action: "card", product, origin }    → Paystack's card / Apple Pay page. Monthly/yearly renew automatically.
 //   { action: "mpesa", product, phone }    → M-Pesa STK push (KES): the phone shows a PIN prompt. Buys days.
 //   { action: "verify", reference }        → checks a payment with Paystack and turns Premium on (once)
@@ -8,6 +10,7 @@
 import { PRODUCTS, PaystackError, admin, cardCurrency, cors, fulfil, json, kenyanPhone, paystack, planCode, priceIn, returnBase, type Product } from "../_shared/billing.ts";
 
 const newReference = () => "mv_" + crypto.randomUUID().replace(/-/g, "");
+const paymentsOpen = () => Deno.env.get("PAYMENTS_OPEN") === "true";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -24,7 +27,7 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return json(400, { error: "The request wasn't readable." }); }
 
   try {
-    if (body.action === "config") return json(200, { cardCurrency: cardCurrency() });
+    if (body.action === "config") return json(200, { cardCurrency: cardCurrency(), paymentsOpen: paymentsOpen() });
 
     // ----- Check a payment (after returning from the card page, or while waiting for M-Pesa) -----
     if (body.action === "verify") {
@@ -52,6 +55,8 @@ Deno.serve(async (req) => {
       return json(200, { url: link.link });
     }
 
+    // ----- Buying: closed until Paystack approves the account -----
+    if (!paymentsOpen()) return json(403, { error: "Premium is coming soon. Payments aren't open yet." });
     const product = body.product as Product;
     const p = PRODUCTS[product];
     if (!p) return json(400, { error: "Unknown product." });

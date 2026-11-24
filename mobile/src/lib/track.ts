@@ -12,7 +12,7 @@ import { ensureSession, supabase } from "./supabase";
 export type EventName =
   | "session_start" | "game_start" | "card_shown" | "card_skip" | "card_done" | "card_star"
   | "mood_set" | "guest_wall" | "signup" | "signin" | "room_start" | "room_join"
-  | "premium_view" | "checkout_start" | "premium_on" | "found_via" | "heat_up" | "heat_undo";
+  | "premium_view" | "checkout_start" | "premium_on" | "found_via" | "heat_up" | "heat_undo" | "premium_interest";
 
 const OPT_KEY = "mv.analytics"; // "off" when switched off
 export const useAnalytics = create<{ on: boolean; loaded: boolean }>(() => ({ on: true, loaded: false }));

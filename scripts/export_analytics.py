@@ -474,7 +474,8 @@ def main() -> None:
     sheets = {**per_type, "Top cards": top_cards(ev, cat), **breakdowns(ev, cat),
               "Funnel by day": funnel_by_day(ev), "Retention": retention(ev), "By ref": refs,
               "Social summary": social.summary(per_post), "By piece": social.by_piece(per_post), "Social raw": social_raw,
-              "Found via": social.found_via(ev), "Heat rises": heat_rises(ev), "Sessions": sessions(ev), "Events": ev}
+              "Found via": social.found_via(ev), "Heat rises": heat_rises(ev),
+              "Premium interest": ev[ev["name"] == "premium_interest"].groupby("date")["user"].nunique().rename("people").reset_index(), "Sessions": sessions(ev), "Events": ev}
     write(out, sheets, posts, args.demo)
     write_card_stats(allc, DATA / ("card-stats-DEMO.json" if args.demo else "card-stats.json"))
     print(f"{len(ev)} events, {ev['user'].nunique()} people, {len(cat)} cards ({int((allc['shown'] > 0).sum())} played) -> {out.relative_to(ROOT)}")

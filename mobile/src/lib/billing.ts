@@ -30,6 +30,13 @@ async function call<T = any>(body: Record<string, unknown>): Promise<T> {
   return data as T;
 }
 
+/** Whether Premium can be bought yet (closed until Paystack approves; switched on the server) and the card currency.
+ *  Fails closed: if the server can't be reached, buying stays hidden. */
+export async function billingConfig(): Promise<{ cardCurrency: "USD" | "KES"; paymentsOpen: boolean }> {
+  const r = await call<{ cardCurrency?: string; paymentsOpen?: boolean }>({ action: "config" }).catch(() => ({} as { cardCurrency?: string; paymentsOpen?: boolean }));
+  return { cardCurrency: r.cardCurrency === "USD" ? "USD" : "KES", paymentsOpen: r.paymentsOpen === true };
+}
+
 /** What cards are charged in right now: KES until Paystack enables USD on the account. */
 export async function cardCurrency(): Promise<"USD" | "KES"> {
   const r = await call<{ cardCurrency?: string }>({ action: "config" }).catch(() => ({ cardCurrency: "KES" }));

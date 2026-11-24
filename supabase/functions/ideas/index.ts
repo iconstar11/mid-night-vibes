@@ -20,6 +20,11 @@ const LIMIT_MESSAGE: Record<string, string> = {
   free: "You've used your free AI mood. It's back in 2 days, or go Premium for 100 a day.",
   premium: "That's today's AI moods. They're back tomorrow.",
 };
+/** While buying Premium is closed (billing's PAYMENTS_OPEN), don't send free players to it. */
+function limitMessage(tier: string): string {
+  if (tier === "free" && Deno.env.get("PAYMENTS_OPEN") !== "true") return "You've used your free AI mood. It's back in 2 days. Premium (100 a day) is coming soon.";
+  return LIMIT_MESSAGE[tier] ?? LIMIT_MESSAGE.guest;
+}
 const CACHE_VARIANTS = 3; // after this many results for the same mood, serve from cache
 
 const cors = {
@@ -87,7 +92,7 @@ Deno.serve(async (req) => {
   const limit = lim?.ai_moods_per_day ?? 0;
   const window = lim?.window_days ?? 1;
   if (likes.length && tier !== "premium") return send(403, { error: "Picked-for-you cards are a Premium feature." });
-  if (limit <= 0) return send(429, { error: LIMIT_MESSAGE[tier] ?? LIMIT_MESSAGE.guest, limit: true, plan: tier, signin: tier === "guest" });
+  if (limit <= 0) return send(429, { error: limitMessage(tier), limit: true, plan: tier, signin: tier === "guest" });
 
   // Count it (moods over the window; raw calls per day are capped too), cached or not
   const { data: usage, error: usageErr } = await admin.rpc("bump_ai_usage", { uid, new_mood: newMood });
@@ -96,7 +101,7 @@ Deno.serve(async (req) => {
   const { data: inWindow } = await admin.rpc("ai_moods_in_window", { uid, days: window });
   const moods = typeof inWindow === "number" ? inWindow : row?.moods ?? 0;
   if (moods > limit || (row && row.calls > limit * CALLS_PER_MOOD)) {
-    return send(429, { error: LIMIT_MESSAGE[tier] ?? LIMIT_MESSAGE.guest, limit: true, plan: tier });
+    return send(429, { error: limitMessage(tier), limit: true, plan: tier });
   }
 
   // Popular moods: reuse one of a few saved results (never for personal "Picked for you" cards)

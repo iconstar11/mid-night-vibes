@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState } from "react";
@@ -10,7 +11,7 @@ import { ProfileSettings } from "@/components/ProfileSettings";
 import { Icon, Row, Section, Value } from "@/components/SettingsList";
 import { Btn, Fine, Label, RoundBtn, Screen, Seg } from "@/components/ui";
 import { PLAN_NAMES, aiAllowance, refreshAccount,signIn, signInWithGoogle, signOut, signUp, useAuth } from "@/lib/auth";
-import { OFFERS, cardCurrency, manageBilling, payByCard, payByMpesa, waitForPayment, waitForPremium, type Product } from "@/lib/billing";
+import { OFFERS, billingConfig, manageBilling, payByCard, payByMpesa, waitForPayment, waitForPremium, type Product } from "@/lib/billing";
 import { peekPending, type PendingReason } from "@/lib/pending";
 import { useProfile } from "@/lib/profile";
 import { track } from "@/lib/track";
@@ -177,7 +178,9 @@ function Premium() {
   const offer = OFFERS.find((o) => o.id === open)!;
   // Cards charge KES until Paystack enables USD; show the price people will actually pay
   const [cur, setCur] = useState<"USD" | "KES">("KES");
-  useEffect(() => { cardCurrency().then(setCur); }, []);
+  // Buying is closed until Paystack approves the account (a switch on the server): show "coming soon" instead
+  const [buying, setBuying] = useState<boolean | null>(null);
+  useEffect(() => { billingConfig().then((r) => { setCur(r.cardCurrency); setBuying(r.paymentsOpen); }); }, []);
   const cardPrice = (o: (typeof OFFERS)[number]) => (cur === "USD" ? o.price : o.kes);
   const digits = (mpesa?.phone ?? "").replace(/\D/g, "").length;
 
@@ -203,6 +206,7 @@ function Premium() {
     setBusy(false);
   }
 
+  if (buying !== true) return <ComingSoon loading={buying === null} />;
   return (
     <LinearGradient colors={[c.wine, c.plum, mix(c.plum, "#000000", 0.35)]} start={{ x: 0, y: 0 }} end={{ x: 0.85, y: 1 }}
       style={[st.premium, { boxShadow: `0 22px 48px ${c.plum}55`, borderColor: c.brass + "55" }]}>
@@ -273,6 +277,46 @@ function Premium() {
       <Text style={[st.perk, { color: c.onAccent, fontSize: 12.5, opacity: 0.7 }]}>
         Secure payment by Paystack. {cur === "USD" ? "Cards and Apple Pay are charged in US dollars; M-Pesa in Kenyan shillings." : "Charged in Kenyan shillings; cards from other countries convert automatically."}
       </Text>
+    </LinearGradient>
+  );
+}
+
+const NOTIFY_KEY = "mv.premiumNotify";
+
+/** Before Paystack approval: the perks and "Notify me", no prices and no way to pay. */
+function ComingSoon({ loading }: { loading: boolean }) {
+  const c = useColors();
+  const [asked, setAsked] = useState(false);
+  useEffect(() => { AsyncStorage.getItem(NOTIFY_KEY).then((v) => setAsked(v === "1")).catch(() => {}); }, []);
+  const notify = () => {
+    track("premium_interest", { plan: useAuth.getState().plan });
+    AsyncStorage.setItem(NOTIFY_KEY, "1").catch(() => {});
+    setAsked(true);
+  };
+  return (
+    <LinearGradient colors={[c.wine, c.plum, mix(c.plum, "#000000", 0.35)]} start={{ x: 0, y: 0 }} end={{ x: 0.85, y: 1 }}
+      style={[st.premium, { boxShadow: `0 22px 48px ${c.plum}55`, borderColor: c.brass + "55" }]}>
+      <Text style={[st.premiumKicker, { color: c.brass }]}>MIDNIGHT VIBES PREMIUM</Text>
+      {loading ? (
+        <ActivityIndicator color={c.onAccent} style={{ marginVertical: 18 }} />
+      ) : (
+        <>
+          <Text style={[st.premiumTitle, { color: c.onAccent }]}>Premium is coming soon</Text>
+          {PERKS.map((p) => (
+            <Text key={p} style={[st.perk, { color: c.onAccent }]}><Text style={{ color: c.brass }}>✦  </Text>{p}</Text>
+          ))}
+          {asked ? (
+            <View style={[st.payBtn, st.notified, { borderColor: c.onAccent + "55" }]}>
+              <Text style={[st.payText, { color: c.onAccent }]}>✓ Thanks, we'll let you know</Text>
+            </View>
+          ) : (
+            <Pressable onPress={notify} accessibilityRole="button" style={({ pressed }) => [st.payBtn, st.notify, { backgroundColor: c.onAccent, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
+              <Text style={[st.payText, { color: ON_CREAM.wine }]}>Notify me when it opens</Text>
+            </Pressable>
+          )}
+          <Text style={[st.perk, { color: c.onAccent, fontSize: 12.5, opacity: 0.7 }]}>The built-in cards stay free and unlimited.</Text>
+        </>
+      )}
     </LinearGradient>
   );
 }
@@ -411,6 +455,8 @@ const st = StyleSheet.create({
   payRow: { flexDirection: "row", gap: 10, marginTop: 4 },
   payBtn: { flex: 1, borderRadius: 999, paddingVertical: 14, alignItems: "center" },
   payText: { fontFamily: font.heavy, fontSize: 15 },
+  notify: { flex: 0, marginTop: 10 },
+  notified: { flex: 0, marginTop: 10, borderWidth: 1.5 },
   mpesaBox: { borderWidth: 1.5, borderRadius: 18, padding: 14, gap: 10, marginTop: 4 },
   google: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderWidth: 1.5, borderRadius: 999, paddingVertical: 14 },
   googleText: { fontFamily: font.semibold, fontSize: 16 },
