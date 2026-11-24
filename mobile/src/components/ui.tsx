@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, type PressableProps, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useGame } from "@/state/store";
@@ -100,11 +101,19 @@ export function Chip({ label, onPress, selected }: { label: string; onPress: () 
   );
 }
 
-export function RoundBtn({ label, onPress, a11y }: { label: string; onPress: () => void; a11y: string }) {
+/** Round icon button. `icon="back"` draws a chevron (a text "‹" sits on the baseline and never looks centred). */
+export function RoundBtn({ label, icon, onPress, a11y }: { label?: string; icon?: "back"; onPress: () => void; a11y: string }) {
   const c = useColors();
   return (
     <Press onPress={onPress} scale={0.92} style={[s.round, { borderColor: c.line, backgroundColor: c.surface }]} accessibilityLabel={a11y} accessibilityRole="button">
-      <Text style={[s.roundText, { color: c.ink }]}>{label}</Text>
+      {icon === "back" ? (
+        // Nudged 1px right: a left-pointing chevron looks off-centre when it's mathematically centred
+        <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" style={{ marginLeft: 1 }}>
+          <Path d="M15 5 8 12l7 7" stroke={c.ink} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      ) : (
+        <Text style={[s.roundText, { color: c.ink }]}>{label}</Text>
+      )}
     </Press>
   );
 }
@@ -116,7 +125,7 @@ export function GameBar({ game, who }: { game: string; who: string }) {
   const setHeat = useGame((g) => g.setHeat);
   return (
     <View style={s.bar}>
-      <RoundBtn label="‹" a11y="Back to games" onPress={() => (router.canGoBack() ? router.back() : router.replace("/home"))} />
+      <RoundBtn icon="back" a11y="Back to games" onPress={() => (router.canGoBack() ? router.back() : router.replace("/home"))} />
       <View style={s.turn}>
         <Text style={[s.turnSmall, { color: c.muted }]}>{game}</Text>
         <Text style={[s.turnBig, { color: c.ink }]} numberOfLines={1}>{who}</Text>

@@ -42,7 +42,7 @@ function AccountScreen() {
   return (
     <Screen scroll>
       <View style={st.bar}>
-        <RoundBtn label="‹" a11y="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace("/home"))} />
+        <RoundBtn icon="back" a11y="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace("/home"))} />
         <Text style={[st.barTitle, { color: c.ink }]}>Account</Text>
         <View style={{ width: 44 }} />
       </View>

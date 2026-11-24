@@ -44,7 +44,7 @@ export default function ReportScreen() {
   const back = () => (router.canGoBack() ? router.back() : router.replace("/account"));
   const bar = (
     <View style={st.bar}>
-      <RoundBtn label="‹" a11y="Back" onPress={back} />
+      <RoundBtn icon="back" a11y="Back" onPress={back} />
       <Text style={[st.barTitle, { color: c.ink }]}>Weekly report</Text>
       <View style={{ width: 44 }} />
     </View>
