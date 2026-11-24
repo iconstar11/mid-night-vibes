@@ -150,7 +150,7 @@ group by ref order by visitors desc;
 
 - **Kenya Data Protection Act 2019** treats data about a person's **sex life and sexual orientation as sensitive personal data**, which needs stronger grounds and care. That's why gender and "into" stay on the user's own profile and are **never** in analytics. GDPR's rules on special categories are similar, if EU users come. [standard]
 - **Data minimisation:** collect only what a decision needs. Every event above maps to a metric or lever in sections 1 and 4. Drop anything that stops being used. Events are deleted after about 13 months (`prune_events()`).
-- **Transparency and choice:** a first-open notice explains the stats, and there's a working off switch in Profile & settings. A privacy policy page saying the same is still needed. [our call]
+- **Transparency and choice:** the stats are disclosed in the privacy policy (no pop-up, as with most apps), and there's a working off switch in Profile & settings. A privacy policy page saying this is still needed. [our call]
 - **Registration:** Kenya's ODPC requires some data controllers to register. Check whether Midnight Vibes meets the thresholds before scaling. (This is not legal advice.)
 - **Avoid dark patterns:**
   - The guest wall says plainly that sign-in is needed. It never fakes scarcity or hides the free cards behind tricks.

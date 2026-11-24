@@ -1,6 +1,6 @@
 // Anonymous game stats (events table). Batched and sent in the background; never blocks the game.
 // Privacy: only the property names in ALLOWED are kept, so names, emails, gender, typed moods or card text
-// can't slip in. People can switch it off in Profile & settings (or from the first-open notice).
+// can't slip in. Disclosed in the privacy policy; people can switch it off in Profile & settings.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import { create } from "zustand";
@@ -15,25 +15,19 @@ export type EventName =
   | "premium_view" | "checkout_start" | "premium_on";
 
 const OPT_KEY = "mv.analytics"; // "off" when switched off
-const NOTICE_KEY = "mv.analyticsNotice"; // "seen" once the first-open notice was closed
-
-export const useAnalytics = create<{ on: boolean; noticeSeen: boolean; loaded: boolean }>(() => ({ on: true, noticeSeen: true, loaded: false }));
-Promise.all([AsyncStorage.getItem(OPT_KEY), AsyncStorage.getItem(NOTICE_KEY)])
-  .then(([opt, notice]) => {
-    useAnalytics.setState({ on: opt !== "off", noticeSeen: notice === "seen", loaded: true });
+export const useAnalytics = create<{ on: boolean; loaded: boolean }>(() => ({ on: true, loaded: false }));
+AsyncStorage.getItem(OPT_KEY)
+  .then((opt) => {
+    useAnalytics.setState({ on: opt !== "off", loaded: true });
     if (opt === "off") queue.length = 0; // anything queued before we knew they'd switched it off
   })
   .catch(() => useAnalytics.setState({ loaded: true }));
 
+/** The switch in Profile & settings. */
 export function setAnalytics(on: boolean) {
-  useAnalytics.setState({ on, noticeSeen: true });
+  useAnalytics.setState({ on });
   AsyncStorage.setItem(OPT_KEY, on ? "on" : "off").catch(() => {});
-  AsyncStorage.setItem(NOTICE_KEY, "seen").catch(() => {});
   if (!on) queue.length = 0;
-}
-export function closeAnalyticsNotice() {
-  useAnalytics.setState({ noticeSeen: true });
-  AsyncStorage.setItem(NOTICE_KEY, "seen").catch(() => {});
 }
 
 /** One id per app open, to group events into sessions. */
