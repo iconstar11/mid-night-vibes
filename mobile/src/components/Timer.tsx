@@ -27,12 +27,16 @@ export function Timer({ seconds }: { seconds: number }) {
   const [phase, setPhase] = useState<Phase>("ready");
   const [left, setLeft] = useState(seconds * 1000);
   const endsAt = useRef(0);
+  const lastTap = useRef(0);
 
   useEffect(() => {
     if (phase !== "running") return;
     const id = setInterval(() => {
       const ms = Math.max(0, endsAt.current - Date.now());
       setLeft(ms);
+      // A soft tap for each of the last 3 seconds, then the chime
+      const sec = Math.ceil(ms / 1000);
+      if (sec >= 1 && sec <= 3 && sec !== lastTap.current) { lastTap.current = sec; play("countdown"); }
       if (ms === 0) { setPhase("done"); alarm(); }
     }, 200);
     return () => clearInterval(id);

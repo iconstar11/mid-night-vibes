@@ -5,7 +5,6 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 import type { Into, Sex } from "@/game/types";
 import { setPrefs, setShowMood, usePrefs } from "@/lib/prefs";
-import { router } from "expo-router";
 import { setAnalytics, useAnalytics } from "@/lib/track";
 import { addSavedPlayer, removeSavedPlayer, saveProfile, updateSavedPlayer, useProfile, type SavedPlayer, type Theme } from "@/lib/profile";
 import { font, useColors } from "@/theme/tokens";
@@ -84,7 +83,6 @@ export function ProfileSettings() {
       <View>
         <Label>Sounds</Label>
         <Seg<"on" | "off"> value={sound ? "on" : "off"} onChange={(v) => { setPrefs({ sound: v === "on" }); run(Promise.resolve("")); }} accent={c.rose} options={[["on", "On"], ["off", "Off"]]} />
-        <Btn kind="quiet" label="Preview sounds and pick a style" onPress={() => router.push("/sounds")} />
       </View>
       <View>
         <Label>Vibration</Label>

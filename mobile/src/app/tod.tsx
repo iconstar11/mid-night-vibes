@@ -81,12 +81,13 @@ function Game() {
     setBusy(true);
     if (!(await allowed())) { setBusy(false); return; }
     tap();
+    if (card) play("skip"); // Skip: a soft falling note before the next card
     ended("card_skip"); // only when a card was showing (Skip)
     const drawn = draw(type);
     host.card(drawn, false);
     shown(drawn);
-    play("flip");
     await motion.flip(() => setCard(drawn));
+    play(drawn.type); // truth: calm and low; dare: bright and quick
     setBusy(false);
   }
 
@@ -98,7 +99,8 @@ function Game() {
     const type: CardType = Math.random() < 0.5 ? "truth" : "dare";
     const drawn = draw(type);
     host.card(drawn, true); // viewers run the same shuffle and land on the same card
-    await motion.shuffle(type, (t) => { setShuffleText(t); play("tick", { speed: 0.6 }); });
+    let step = 0; // the taps slow down with the shuffle
+    await motion.shuffle(type, (t) => { setShuffleText(t); play("shuffle", { speed: Math.max(0.15, 1 - step++ / 12) }); });
     if (!motion.reduce) {
       const pulse = type === "truth" ? pulseT : pulseD;
       await to(pulse, 1.08, { duration: 160 }); await to(pulse, 1, { duration: 160 });
@@ -106,8 +108,8 @@ function Game() {
     tap();
     await wait(motion.reduce ? 0 : 250);
     shown(drawn);
-    play("flip");
     await motion.flip(() => { setShuffleText(null); setCard(drawn); });
+    play(drawn.type);
     setBusy(false);
   }
 
