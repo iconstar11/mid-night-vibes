@@ -306,11 +306,11 @@ function ComingSoon({ loading }: { loading: boolean }) {
             <Text key={p} style={[st.perk, { color: c.onAccent }]}><Text style={{ color: c.brass }}>✦  </Text>{p}</Text>
           ))}
           {asked ? (
-            <View style={[st.payBtn, st.notified, { borderColor: c.onAccent + "55" }]}>
+            <View style={[st.notify, st.notified, { borderColor: c.onAccent + "55" }]}>
               <Text style={[st.payText, { color: c.onAccent }]}>✓ Thanks, we'll let you know</Text>
             </View>
           ) : (
-            <Pressable onPress={notify} accessibilityRole="button" style={({ pressed }) => [st.payBtn, st.notify, { backgroundColor: c.onAccent, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
+            <Pressable onPress={notify} accessibilityRole="button" style={({ pressed }) => [st.notify, { backgroundColor: c.onAccent, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
               <Text style={[st.payText, { color: ON_CREAM.wine }]}>Notify me when it opens</Text>
             </Pressable>
           )}
@@ -455,8 +455,9 @@ const st = StyleSheet.create({
   payRow: { flexDirection: "row", gap: 10, marginTop: 4 },
   payBtn: { flex: 1, borderRadius: 999, paddingVertical: 14, alignItems: "center" },
   payText: { fontFamily: font.heavy, fontSize: 15 },
-  notify: { flex: 0, marginTop: 10 },
-  notified: { flex: 0, marginTop: 10, borderWidth: 1.5 },
+  // Its own full style (not payBtn: that one is flex: 1 to share a row, which squashes a lone button in a column)
+  notify: { minHeight: 50, borderRadius: 999, paddingVertical: 14, paddingHorizontal: 18, alignItems: "center", justifyContent: "center", marginTop: 10 },
+  notified: { borderWidth: 1.5 },
   mpesaBox: { borderWidth: 1.5, borderRadius: 18, padding: 14, gap: 10, marginTop: 4 },
   google: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, borderWidth: 1.5, borderRadius: 999, paddingVertical: 14 },
   googleText: { fontFamily: font.semibold, fontSize: 16 },
